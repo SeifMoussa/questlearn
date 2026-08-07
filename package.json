@@ -1,0 +1,26 @@
+{
+  "name": "questlearn",
+  "version": "0.1.0",
+  "private": true,
+  "description": "QuestLearn — educational gamification platform (portfolio project)",
+  "license": "MIT",
+  "engines": {
+    "node": "24.x",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "postinstall": "pnpm --filter @questlearn/config build",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "infra:reset": "docker compose down -v && docker compose up -d",
+    "infra:logs": "docker compose logs -f",
+    "dev:api": "pnpm --filter @questlearn/api dev",
+    "dev:web": "pnpm --filter @questlearn/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {}
+}
