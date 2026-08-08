@@ -29,6 +29,9 @@ export const envSchema = z.object({
   CSRF_SECRET: z
     .string()
     .min(16, "CSRF_SECRET must be at least 16 characters"),
+  JWT_SECRET: z
+    .string()
+    .min(16, "JWT_SECRET must be at least 16 characters"),
 
   API_URL: z.string().url().optional(),
   WEB_URL: z.string().url().optional(),
