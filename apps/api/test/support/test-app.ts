@@ -1,7 +1,8 @@
 import cookieParser from "cookie-parser";
-import { ValidationPipe, INestApplication } from "@nestjs/common";
+import { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { AppModule } from "../../src/app.module";
+import { createValidationPipe } from "../../src/common/validation-pipe";
 
 /**
  * Builds a real, fully-wired Nest application (real Postgres via
@@ -16,13 +17,7 @@ export async function createTestApp(): Promise<INestApplication> {
 
   const app = moduleRef.createNestApplication();
   app.use(cookieParser());
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  app.useGlobalPipes(createValidationPipe());
   await app.init();
   return app;
 }
