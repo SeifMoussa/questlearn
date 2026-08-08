@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import StatusPage from "../src/app/page";
-import * as health from "../src/lib/health";
+import StatusPage from "../../src/app/status/page";
+import * as health from "../../src/lib/health";
 
 describe("StatusPage", () => {
   afterEach(() => {
