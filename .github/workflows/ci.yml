@@ -10,12 +10,42 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: questlearn
+          POSTGRES_PASSWORD: questlearn
+          POSTGRES_DB: questlearn
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U questlearn -d questlearn"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://questlearn:questlearn@localhost:5432/questlearn
       REDIS_URL: redis://localhost:6379
       SESSION_SECRET: ci-session-secret-placeholder-value
       CSRF_SECRET: ci-csrf-secret-placeholder-value
+      JWT_SECRET: ci-jwt-secret-placeholder-value
+      AUTH_THROTTLE_LIMIT: 5
+      AUTH_THROTTLE_TTL_MS: 60000
+      API_URL: http://localhost:4000
+      WEB_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:4000
 
     steps:
       - name: Checkout
@@ -35,7 +65,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared packages
-        run: pnpm --filter @questlearn/config build
+        run: pnpm --filter @questlearn/config build && pnpm --filter @questlearn/design-system build
+
+      - name: Generate Prisma client
+        run: pnpm --filter @questlearn/api prisma:generate
 
       - name: Lint
         run: pnpm -r lint
@@ -43,8 +76,44 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
-      - name: Unit tests
+      - name: Apply Prisma migrations
+        run: pnpm --filter @questlearn/api exec prisma migrate deploy
+
+      - name: Unit and integration tests
         run: pnpm -r test
 
       - name: Build
         run: pnpm -r build
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @questlearn/web exec playwright install --with-deps chromium
+
+      - name: Start API
+        # Redirected to apps/api/dev.log, not just the job log — the
+        # Playwright auth flow reads verification/reset tokens back
+        # out of that file (see apps/web/e2e/support/api-log.ts),
+        # since no real email provider is wired up in this module.
+        run: nohup pnpm --filter @questlearn/api start > apps/api/dev.log 2>&1 &
+        env:
+          PORT: 4000
+
+      - name: Start web
+        run: nohup pnpm --filter @questlearn/web start > apps/web/web.log 2>&1 &
+        env:
+          PORT: 3000
+
+      - name: Wait for API and web
+        run: |
+          npx wait-on http://localhost:4000/health http://localhost:3000/ --timeout 60000
+
+      - name: Playwright auth flow
+        run: pnpm --filter @questlearn/web exec playwright test
+        env:
+          WEB_URL: http://localhost:3000
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-screenshots
+          path: docs/screenshots/01-authentication/

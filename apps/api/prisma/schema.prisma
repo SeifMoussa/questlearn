@@ -1,0 +1,116 @@
+// Prisma schema for the QuestLearn API.
+//
+// Every non-global table carries tenant_id, per Master Spec §6.1 (A4) —
+// the platform only has one tenant type ("teacher workspace") today, but
+// every row is scoped so the model is multi-tenant-correct from the start.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  teacher
+  learner
+}
+
+enum TenantPlan {
+  free
+}
+
+/// A tenant is a teacher's workspace. Module 1 only ever creates
+/// teacher-owned tenants (registration is teacher-only in this module).
+model Tenant {
+  id        String     @id @default(uuid())
+  name      String
+  plan      TenantPlan @default(free)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  users                User[]
+  verificationTokens   VerificationToken[]
+  passwordResetTokens  PasswordResetToken[]
+  sessions             Session[]
+
+  @@map("tenants")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  email           String
+  name            String
+  passwordHash    String    @map("password_hash")
+  role            UserRole  @default(teacher)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions             Session[]
+  verificationTokens   VerificationToken[]
+  passwordResetTokens  PasswordResetToken[]
+
+  // Email uniqueness is scoped globally (login is by email alone, no
+  // tenant selector in Module 1), not per-tenant.
+  @@unique([email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+/// Refresh tokens, stored hashed — never plaintext at rest. Rotated on
+/// every use; the old row is marked revoked rather than deleted so a
+/// reuse of a stale token can be detected.
+model Session {
+  id             String    @id @default(uuid())
+  tenantId       String    @map("tenant_id")
+  userId         String    @map("user_id")
+  refreshTokenHash String  @unique @map("refresh_token_hash")
+  expiresAt      DateTime  @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Single-use, expiring, hashed-at-rest email verification tokens.
+model VerificationToken {
+  id         String    @id @default(uuid())
+  tenantId   String    @map("tenant_id")
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("verification_tokens")
+}
+
+/// Single-use, expiring, hashed-at-rest password reset tokens.
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  tenantId   String    @map("tenant_id")
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("password_reset_tokens")
+}

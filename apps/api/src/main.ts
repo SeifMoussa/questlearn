@@ -1,8 +1,10 @@
 import "reflect-metadata";
+import cookieParser from "cookie-parser";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { EnvValidationError, loadEnv } from "@questlearn/config";
 import { AppModule } from "./app.module";
+import { createValidationPipe } from "./common/validation-pipe";
 
 async function bootstrap(): Promise<void> {
   let env;
@@ -21,6 +23,8 @@ async function bootstrap(): Promise<void> {
     origin: env.WEB_URL ?? true,
     credentials: true,
   });
+  app.use(cookieParser());
+  app.useGlobalPipes(createValidationPipe());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("QuestLearn API")

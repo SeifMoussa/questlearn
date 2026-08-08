@@ -1,0 +1,48 @@
+:root{
+/* --- primary: indigo/violet --- */
+--indigo-50:#F1EFFE;--indigo-100:#E4E0FD;--indigo-200:#C9C1FB;--indigo-300:#A79AF7;
+--indigo-400:#8571F0;--indigo-500:#6650E8;--indigo-600:#4F3FE0;--indigo-700:#3F30C4;
+--indigo-800:#31269B;--indigo-900:#241C6E;--indigo-950:#1B1640;
+/* --- teal: mastery / progress --- */
+--teal-50:#EAFBF8;--teal-100:#CFF5EE;--teal-300:#7FE2D1;--teal-500:#14B8A6;--teal-600:#0D9C8C;--teal-700:#0B7C70;
+/* --- green: positive delta / success --- */
+--green-50:#EBFBEF;--green-300:#86E0A4;--green-500:#22C55E;--green-600:#16A34A;
+/* --- amber/orange: warning / mid-tier --- */
+--amber-50:#FFF6E8;--amber-100:#FEEBC8;--amber-300:#FBC96B;--amber-500:#F59E0B;--amber-600:#D97F06;
+--orange-500:#F97316;--orange-600:#EA5F0A;
+/* --- red: needs-support / at-risk --- */
+--red-50:#FDECEC;--red-300:#F5A3A3;--red-500:#EF4444;--red-600:#DC2626;
+/* --- neutrals --- */
+--gray-0:#FFFFFF;--gray-25:#FAFAFD;--gray-50:#F5F5FB;--gray-100:#EEEDF7;--gray-200:#E3E1F0;
+--gray-300:#CFCCE3;--gray-400:#A6A2C0;--gray-500:#7B7797;--gray-600:#5C5878;--gray-700:#454263;
+--gray-800:#2E2C4A;--gray-900:#1E1C38;
+
+/* --- semantic aliases --- */
+--surface-page:var(--gray-50);
+--surface-card:var(--gray-0);
+--surface-sidebar:var(--indigo-950);
+--surface-sunken:var(--gray-100);
+--border-default:var(--gray-200);
+--border-strong:var(--gray-300);
+
+--text-primary:var(--gray-900);
+--text-secondary:var(--gray-500);
+--text-inverse:var(--gray-0);
+--text-on-sidebar:#C9C4E8;
+--text-on-sidebar-active:var(--gray-0);
+
+--brand-primary:var(--indigo-600);
+--brand-primary-hover:var(--indigo-700);
+--brand-primary-active:var(--indigo-800);
+--brand-tint:var(--indigo-50);
+
+--accent-mastery:var(--teal-500);
+--accent-success:var(--green-500);
+--accent-warning:var(--amber-500);
+--accent-reward:var(--amber-500);
+--accent-danger:var(--red-500);
+
+--status-on-track-bg:var(--green-50);--status-on-track-fg:var(--green-600);
+--status-needs-support-bg:var(--amber-50);--status-needs-support-fg:var(--amber-600);
+--status-at-risk-bg:var(--red-50);--status-at-risk-fg:var(--red-600);
+}

@@ -29,9 +29,19 @@ export const envSchema = z.object({
   CSRF_SECRET: z
     .string()
     .min(16, "CSRF_SECRET must be at least 16 characters"),
+  JWT_SECRET: z
+    .string()
+    .min(16, "JWT_SECRET must be at least 16 characters"),
 
   API_URL: z.string().url().optional(),
   WEB_URL: z.string().url().optional(),
+
+  // Rate limit applied to the sensitive, unauthenticated auth
+  // endpoints (register/login/forgot-password). Configurable so
+  // tests can use a short window instead of waiting out a real
+  // 60-second production window.
+  AUTH_THROTTLE_LIMIT: z.coerce.number().int().positive().default(5),
+  AUTH_THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
 });
 
 export type Env = z.infer<typeof envSchema>;
