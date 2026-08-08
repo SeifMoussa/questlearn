@@ -10,7 +10,7 @@
   },
   "packageManager": "pnpm@11.20.0",
   "scripts": {
-    "postinstall": "pnpm --filter @questlearn/config build",
+    "postinstall": "pnpm --filter @questlearn/config build && pnpm --filter @questlearn/design-system build",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v && docker compose up -d",
