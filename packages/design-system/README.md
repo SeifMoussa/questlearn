@@ -1,9 +1,8 @@
 # @questlearn/design-system
 
 Design tokens and component library for QuestLearn, pulled from the
-`QuestLearn Design System` project on Claude Design
-(`claude.ai/design`). This is the source of visual truth for
-`apps/web` from Module 1 onward.
+`QuestLearn Design System` project. This is the source of visual truth
+for `apps/web` from Module 1 onward.
 
 ## What's here
 
@@ -72,7 +71,6 @@ building functional pages against the tokens and components as-is.
 
 ## Re-syncing
 
-Re-run the design-system pull (via the `DesignSync` tool's read
-methods against the `QuestLearn Design System` project) whenever the
-Claude Design side changes meaningfully, and diff before overwriting —
+Re-run the design-system pull against the `QuestLearn Design System`
+project whenever it changes meaningfully, and diff before overwriting —
 this package is meant to track that project, not diverge from it.

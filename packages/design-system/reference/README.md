@@ -1,9 +1,9 @@
 # Reference screens
 
 `auth-screens.jsx` and `marketing-site.jsx` are pulled verbatim from the
-Claude Design project's `ui_kits/`. They are **not runnable in this repo
+design system project's `ui_kits/`. They are **not runnable in this repo
 as-is** — they read components off a `window.QuestLearnDesignSystem_*`
-global that only exists inside Claude Design's own preview runtime.
+global that only exists inside that project's own preview runtime.
 
 They exist here as layout/copy reference for building the real pages in
 `apps/web`: full-screen composition, spacing, copy tone, and how the
