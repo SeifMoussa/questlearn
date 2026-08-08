@@ -5,6 +5,7 @@ import { EnvModule } from "./config/env.module";
 import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./auth/auth.module";
+import { ClassesModule } from "./classes/classes.module";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AuthModule } from "./auth/auth.module";
     PrismaModule,
     HealthModule,
     AuthModule,
+    ClassesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

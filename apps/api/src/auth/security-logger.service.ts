@@ -8,7 +8,13 @@ export type SecurityEvent =
   | "password_reset_requested"
   | "password_reset_completed"
   | "token_refreshed"
-  | "logout";
+  | "logout"
+  | "class_created"
+  | "class_updated"
+  | "class_archived"
+  | "join_code_rotated"
+  | "roster_entry_added"
+  | "roster_entry_removed";
 
 /**
  * Structured, append-only logging for auth events. Deliberately never

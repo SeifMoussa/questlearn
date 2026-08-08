@@ -33,6 +33,8 @@ model Tenant {
   verificationTokens   VerificationToken[]
   passwordResetTokens  PasswordResetToken[]
   sessions             Session[]
+  classes              Class[]
+  rosterEntries        RosterEntry[]
 
   @@map("tenants")
 }
@@ -51,6 +53,7 @@ model User {
   sessions             Session[]
   verificationTokens   VerificationToken[]
   passwordResetTokens  PasswordResetToken[]
+  classes              Class[]
 
   // Email uniqueness is scoped globally (login is by email alone, no
   // tenant selector in Module 1), not per-tenant.
@@ -113,4 +116,47 @@ model PasswordResetToken {
   @@index([tenantId])
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+/// A teacher-owned class. Archived (not deleted) so later modules
+/// (activities, assignments) can still reference a class that's no
+/// longer active without a dangling foreign key.
+model Class {
+  id                String    @id @default(uuid())
+  tenantId          String    @map("tenant_id")
+  teacherId         String    @map("teacher_id")
+  name              String
+  joinCode          String    @unique @map("join_code")
+  joinCodeExpiresAt DateTime  @map("join_code_expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  archivedAt        DateTime? @map("archived_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  roster  RosterEntry[]
+
+  @@index([tenantId])
+  @@index([teacherId])
+  @@map("classes")
+}
+
+/// A lightweight, teacher-managed roster record — not a User account.
+/// Module 2 is teacher-side only; a real learner join/redeem flow is
+/// deferred to a later module. Soft-deleted (removedAt) rather than
+/// hard-deleted for an audit trail.
+model RosterEntry {
+  id        String    @id @default(uuid())
+  tenantId  String    @map("tenant_id")
+  classId   String    @map("class_id")
+  name      String
+  email     String?
+  addedAt   DateTime  @default(now()) @map("added_at")
+  removedAt DateTime? @map("removed_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  class  Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([classId])
+  @@map("roster_entries")
 }

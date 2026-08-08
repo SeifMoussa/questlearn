@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button, StatCard } from "@questlearn/design-system";
 import { useAuth } from "@/lib/auth-context";
 
@@ -51,16 +52,21 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 24 }}>
         <StatCard label="Quests" value="0" />
         <StatCard label="Students" value="0" />
         <StatCard label="Mastery" value="—" />
       </div>
 
+      <Link href="/classes">
+        <Button variant="secondary" size="md">
+          Manage classes
+        </Button>
+      </Link>
+
       <p style={{ marginTop: 32, color: "var(--text-secondary)", fontSize: 14, maxWidth: 480 }}>
-        This is a placeholder dashboard — quests, classes, and analytics land
-        in a later module. Module 1 covers account creation and
-        authentication only.
+        This is a placeholder dashboard — quests and analytics land in a
+        later module. Classes are managed on their own page.
       </p>
     </main>
   );

@@ -102,3 +102,81 @@ export function refresh() {
 export function logout() {
   return jsonRequest<{ message: string }>("/auth/logout", {}, { withCsrf: true });
 }
+
+/**
+ * Authenticated requests carry the in-memory access token as a Bearer
+ * header (see auth-context.tsx for why it's never persisted) rather
+ * than the cookie-based flow used by the auth endpoints themselves.
+ * Callers pass their token explicitly since this module has no
+ * component state of its own.
+ */
+function authedRequest<T>(
+  accessToken: string,
+  method: "GET" | "POST" | "PATCH" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
+  return fetch(`${getApiUrl()}${path}`, {
+    method,
+    credentials: "include",
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  }).then((res) => handleResponse<T>(res));
+}
+
+export interface RosterEntry {
+  id: string;
+  name: string;
+  email: string | null;
+  addedAt: string;
+  removedAt: string | null;
+}
+
+export interface SchoolClass {
+  id: string;
+  name: string;
+  joinCode: string;
+  joinCodeExpiresAt: string;
+  createdAt: string;
+  archivedAt: string | null;
+  roster: RosterEntry[];
+}
+
+export function listClasses(accessToken: string) {
+  return authedRequest<SchoolClass[]>(accessToken, "GET", "/classes");
+}
+
+export function getClass(accessToken: string, id: string) {
+  return authedRequest<SchoolClass>(accessToken, "GET", `/classes/${id}`);
+}
+
+export function createClass(accessToken: string, params: { name: string }) {
+  return authedRequest<SchoolClass>(accessToken, "POST", "/classes", params);
+}
+
+export function updateClass(
+  accessToken: string,
+  id: string,
+  params: { name?: string; archived?: boolean },
+) {
+  return authedRequest<SchoolClass>(accessToken, "PATCH", `/classes/${id}`, params);
+}
+
+export function rotateJoinCode(accessToken: string, id: string) {
+  return authedRequest<SchoolClass>(accessToken, "POST", `/classes/${id}/join-code/rotate`);
+}
+
+export function addRosterEntry(
+  accessToken: string,
+  id: string,
+  params: { name: string; email?: string },
+) {
+  return authedRequest<RosterEntry>(accessToken, "POST", `/classes/${id}/roster`, params);
+}
+
+export function removeRosterEntry(accessToken: string, id: string, rosterId: string) {
+  return authedRequest<{ message: string }>(accessToken, "DELETE", `/classes/${id}/roster/${rosterId}`);
+}
