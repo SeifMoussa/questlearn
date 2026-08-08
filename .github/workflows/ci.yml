@@ -98,7 +98,9 @@ jobs:
           PORT: 4000
 
       - name: Start web
-        run: nohup pnpm --filter @questlearn/web start -- -p 3000 > apps/web/web.log 2>&1 &
+        run: nohup pnpm --filter @questlearn/web start > apps/web/web.log 2>&1 &
+        env:
+          PORT: 3000
 
       - name: Wait for API and web
         run: |
