@@ -12,6 +12,13 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
   retries: 0,
+  // Every spec file drives the same shared demo account and the same
+  // dev-log-scraping trick (see support/api-log.ts) against one
+  // running server, and shares the login rate-limit bucket besides —
+  // running files in parallel across workers races both. Force
+  // strictly serial execution across the whole suite, not just within
+  // one file's describe.serial block.
+  workers: 1,
   reporter: [["list"]],
   use: {
     baseURL: process.env.WEB_URL ?? "http://localhost:3000",

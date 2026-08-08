@@ -16,10 +16,12 @@ The full product and engineering plan lives in
 
 ## Status
 
-**Module 0 — Foundation** (workspace, tooling, health checkpoint) and
-**Module 1 — Authentication** (teacher registration, login, sessions)
-are both in place. See [Module 1 — Authentication](#module-1--authentication)
-below for what that module covers.
+**Module 0 — Foundation** (workspace, tooling, health checkpoint),
+**Module 1 — Authentication** (teacher registration, login, sessions),
+and **Module 2 — Classes** (class CRUD, join codes, roster management)
+are all in place. See [Module 1 — Authentication](#module-1--authentication)
+and [Module 2 — Classes](#module-2--classes) below for what each module
+covers.
 
 ## Architecture
 
@@ -176,14 +178,105 @@ testing:
 - [`login-error.png`](./docs/screenshots/01-authentication/login-error.png)
 - [`authenticated-dashboard.png`](./docs/screenshots/01-authentication/authenticated-dashboard.png)
 
+## Module 2 — Classes
+
+Teacher-side class management: a teacher creates a class, gets a
+join code to share, and maintains a roster manually. There is no
+learner login or self-service join flow in this module — a "roster
+entry" is a lightweight record the teacher adds and removes by hand,
+not a real user account. The actual "learner redeems a join code"
+flow is deferred to a later module, once there's learner-facing
+content (activities, assignments) for a learner session to land in.
+
+**What it adds:**
+
+- `POST /classes`, `GET /classes`, `GET /classes/:id`, `PATCH
+  /classes/:id`, `POST /classes/:id/join-code/rotate`, `POST
+  /classes/:id/roster`, `DELETE /classes/:id/roster/:rosterId`.
+- Real Next.js pages: `/classes` (list), `/classes/new` (create), and
+  `/classes/[id]` (detail — rename, archive, join-code rotation,
+  roster add/remove) — all built directly against
+  `@questlearn/design-system` components.
+- A "Manage classes" link from `/dashboard`.
+
+**Architecture decisions:**
+
+- **Every endpoint is scoped by tenant ID *and* owning teacher ID**,
+  checked together even though one-teacher-per-tenant currently makes
+  the two checks equivalent — the same forward-compatible posture
+  already established in the auth module, ready for multi-teacher
+  tenants later without a rewrite.
+- **Cross-tenant access 404s, never a distinct 403** — a class outside
+  the caller's tenant/ownership returns exactly the same "not found"
+  response as a class that doesn't exist at all, so the response shape
+  can't be used to confirm a class id is real. The frontend mirrors
+  this: there's no separate "permission denied" UI, just the same
+  not-found state the API deliberately returns.
+- **Classes are archived, not deleted**; roster entries are
+  soft-deleted via `removedAt`, not hard-deleted — later modules
+  (activities, assignments) will reference classes, and an audit trail
+  matters more than a clean delete.
+- **Join codes** are 8 characters, uppercase alphanumeric, excluding
+  characters that are easy to misread (`0`/`O`, `1`/`I`/`L`), globally
+  unique across the whole table (not just per tenant, since a future
+  redemption endpoint will need to look one up by code alone with no
+  tenant selector), with collision-retry generation and a default
+  30-day expiry from creation or rotation. Rotating immediately
+  invalidates the old code.
+- **Structured security logging** extends the auth module's
+  `SecurityLogger` with class-lifecycle events (`class_created`,
+  `class_archived`, `join_code_rotated`, `roster_entry_added`,
+  `roster_entry_removed`) rather than introducing a parallel logger.
+- **`class-validator` DTOs** on every write endpoint, matching the
+  auth module's validation pipe and per-field error shape.
+
+**Test coverage:**
+
+- Jest unit tests for join-code generation (format, excluded
+  characters, expiry math) and the classes service (join-code
+  collision retry, ownership-scoped 404s, rotation invalidating the
+  old code, roster soft-delete).
+- Jest integration tests against real Postgres
+  (`apps/api/test/classes/`) — a teacher in tenant A cannot view,
+  rename, archive, rotate the join code of, or modify the roster of a
+  class belonging to tenant B (404 in every case); roster add/remove
+  correctness (a removed entry disappears from the roster list but
+  still exists in the database with `removedAt` set); join-code
+  rotation invalidating the old code so a lookup by it fails.
+- **Playwright** (`apps/web/e2e/classes.spec.ts`): log in as the
+  seeded demo teacher → create a class → see it in the class list →
+  open the detail page → see the join code → add a roster entry → see
+  it appear → remove it → rotate the join code → confirm the code
+  visibly changed, plus the not-found and unauthenticated-redirect
+  states. This flow also produced the screenshots below. Running
+  multiple spec files against one shared demo account and one shared
+  login rate-limit bucket only works if they run strictly serially —
+  `playwright.config.ts` now pins `workers: 1` for exactly that reason.
+
+**Demo data:**
+
+`pnpm db:seed` gives the demo teacher (`demo.teacher@questlearn.dev`)
+two fictional classes with a few roster entries already in them, so
+the class-list and class-detail screens show real populated content
+on first login.
+
+**Screenshots** (`docs/screenshots/02-classes/`):
+
+- [`class-list.png`](./docs/screenshots/02-classes/class-list.png)
+- [`create-class-form.png`](./docs/screenshots/02-classes/create-class-form.png)
+- [`class-detail.png`](./docs/screenshots/02-classes/class-detail.png)
+- [`join-code-rotated.png`](./docs/screenshots/02-classes/join-code-rotated.png)
+
 ## Testing
 
 - **Jest** — unit tests for both apps (health service, auth service,
-  a render smoke test for the status page) plus real-Postgres
-  integration tests for the auth session lifecycle, tenant isolation,
-  and rate limiting.
-- **Playwright** (`apps/web/e2e/`) drives the real auth flow through a
-  real browser against the real running app — see Module 1 above.
+  classes service, join-code generation, a render smoke test for the
+  status page) plus real-Postgres integration tests for the auth
+  session lifecycle, classes lifecycle, tenant isolation (auth and
+  classes), and rate limiting.
+- **Playwright** (`apps/web/e2e/`) drives the real auth and class
+  management flows through a real browser against the real running
+  app — see Module 1 and Module 2 above.
 
 ## Known limitations
 
@@ -206,6 +299,24 @@ testing:
   styled pages against the tokens and components as they are.
 - No feature/business logic (quizzes, quests, XP, mastery) exists yet
   — intentionally out of scope for this module.
+
+**Module 2:**
+
+- **No learner-facing join flow.** A roster entry is a name (and
+  optional email) the teacher types in — not an account, and nothing
+  a learner can use to log in. The real "redeem a join code" flow is
+  deferred to a later module, once there's learner-facing content
+  (activities, assignments) for a learner session to actually reach.
+- **No CSV roster import.** Roster entries are added one at a time
+  through the inline form; bulk import is a reasonable future
+  addition but wasn't required for this module's scope.
+- **No join-code brute-force rate limiting yet.** The join-code
+  rotation endpoint is authenticated and tenant/owner-scoped like
+  every other endpoint in this module, but there is no *redemption*
+  endpoint yet (nothing that accepts a bare code and looks up a
+  class), so there's nothing for a brute-force attempt to target.
+  Rate limiting the eventual redemption endpoint is that future
+  module's concern, not something silently skipped here.
 
 ## License
 
