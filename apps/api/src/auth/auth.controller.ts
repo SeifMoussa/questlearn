@@ -30,6 +30,17 @@ import { AccessTokenPayload } from "./guards/jwt-auth.guard";
 const REFRESH_COOKIE = "refresh_token";
 const CSRF_COOKIE = "csrf_token";
 
+// Decorator arguments are evaluated once, at module load — read
+// straight from process.env (with the same defaults as the shared
+// env schema) rather than through Nest DI, so tests can shrink the
+// window by setting env vars before this module is first imported.
+const AUTH_THROTTLE = {
+  default: {
+    limit: Number(process.env.AUTH_THROTTLE_LIMIT ?? 5),
+    ttl: Number(process.env.AUTH_THROTTLE_TTL_MS ?? 60_000),
+  },
+};
+
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
@@ -64,7 +75,7 @@ export class AuthController {
   }
 
   @Post("register")
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle(AUTH_THROTTLE)
   @ApiOperation({ summary: "Create a teacher account and its workspace" })
   async register(@Body() dto: RegisterDto): Promise<{ message: string }> {
     return this.authService.register(dto);
@@ -78,7 +89,7 @@ export class AuthController {
 
   @Post("login")
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle(AUTH_THROTTLE)
   @ApiOperation({ summary: "Log in and receive an access token" })
   async login(
     @Body() dto: LoginDto,
@@ -92,7 +103,7 @@ export class AuthController {
 
   @Post("forgot-password")
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle(AUTH_THROTTLE)
   @ApiOperation({ summary: "Request a password reset link" })
   async forgotPassword(
     @Body() dto: ForgotPasswordDto,
