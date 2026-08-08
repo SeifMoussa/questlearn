@@ -79,6 +79,12 @@ jobs:
       - name: Apply Prisma migrations
         run: pnpm --filter @questlearn/api exec prisma migrate deploy
 
+      - name: Seed database
+        # The Playwright class journey logs in as the seeded demo
+        # teacher (apps/web/e2e/classes.spec.ts) — without this, that
+        # login fails with invalid credentials in a fresh CI database.
+        run: pnpm --filter @questlearn/api seed
+
       - name: Unit and integration tests
         run: pnpm -r test
 
