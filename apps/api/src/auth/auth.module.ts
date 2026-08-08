@@ -13,6 +13,6 @@ import { SecurityLogger } from "./security-logger.service";
     SecurityLogger,
     { provide: EmailService, useClass: DevEmailService },
   ],
-  exports: [AuthService],
+  exports: [AuthService, SecurityLogger],
 })
 export class AuthModule {}
