@@ -247,3 +247,83 @@ export function updateQuestion(accessToken: string, id: string, payload: Questio
 export function archiveQuestion(accessToken: string, id: string) {
   return authedRequest<QuestionSummary>(accessToken, "DELETE", `/questions/${id}`);
 }
+
+export type ActivityStatus = "draft" | "published";
+
+export interface ActivitySummary {
+  id: string;
+  title: string;
+  status: ActivityStatus;
+  publishedAt: string | null;
+  createdAt: string;
+  archivedAt: string | null;
+  questionCount: number;
+}
+
+/**
+ * Resolved question content already reflects the pin-vs-live rule
+ * server-side (see apps/api's ActivitiesService.resolveContent) —
+ * the client never needs to know whether a row is pinned to render
+ * it, only `pinned` for the occasional "locked" UI hint.
+ */
+export interface ActivityQuestionContent {
+  activityQuestionId: string;
+  questionId: string;
+  order: number;
+  pinned: boolean;
+  type: QuestionType;
+  prompt: string;
+  points: number;
+  hint: string | null;
+  explanation: string | null;
+  options: QuestionOption[] | null;
+  correctAnswer: CorrectAnswer;
+}
+
+export interface ActivityDetail {
+  id: string;
+  title: string;
+  status: ActivityStatus;
+  publishedAt: string | null;
+  createdAt: string;
+  archivedAt: string | null;
+  questions: ActivityQuestionContent[];
+}
+
+export function listActivities(accessToken: string) {
+  return authedRequest<ActivitySummary[]>(accessToken, "GET", "/activities");
+}
+
+export function getActivity(accessToken: string, id: string) {
+  return authedRequest<ActivityDetail>(accessToken, "GET", `/activities/${id}`);
+}
+
+export function createActivity(accessToken: string, params: { title: string }) {
+  return authedRequest<ActivitySummary>(accessToken, "POST", "/activities", params);
+}
+
+export function renameActivity(accessToken: string, id: string, params: { title: string }) {
+  return authedRequest<ActivityDetail>(accessToken, "PATCH", `/activities/${id}`, params);
+}
+
+export function addActivityQuestion(accessToken: string, id: string, questionId: string) {
+  return authedRequest<ActivityDetail>(accessToken, "POST", `/activities/${id}/questions`, { questionId });
+}
+
+export function removeActivityQuestion(accessToken: string, id: string, activityQuestionId: string) {
+  return authedRequest<ActivityDetail>(accessToken, "DELETE", `/activities/${id}/questions/${activityQuestionId}`);
+}
+
+export function reorderActivityQuestions(accessToken: string, id: string, activityQuestionIds: string[]) {
+  return authedRequest<ActivityDetail>(accessToken, "PATCH", `/activities/${id}/questions/reorder`, {
+    activityQuestionIds,
+  });
+}
+
+export function publishActivity(accessToken: string, id: string) {
+  return authedRequest<ActivityDetail>(accessToken, "POST", `/activities/${id}/publish`);
+}
+
+export function archiveActivity(accessToken: string, id: string) {
+  return authedRequest<ActivityDetail>(accessToken, "DELETE", `/activities/${id}`);
+}

@@ -69,6 +69,11 @@ export default function DashboardPage() {
             Question bank
           </Button>
         </Link>
+        <Link href="/activities">
+          <Button variant="secondary" size="md">
+            Activities
+          </Button>
+        </Link>
       </div>
 
       <p style={{ marginTop: 32, color: "var(--text-secondary)", fontSize: 14, maxWidth: 480 }}>
