@@ -35,6 +35,8 @@ model Tenant {
   sessions             Session[]
   classes              Class[]
   rosterEntries        RosterEntry[]
+  questions            Question[]
+  questionVersions     QuestionVersion[]
 
   @@map("tenants")
 }
@@ -54,6 +56,7 @@ model User {
   verificationTokens   VerificationToken[]
   passwordResetTokens  PasswordResetToken[]
   classes              Class[]
+  questions            Question[]
 
   // Email uniqueness is scoped globally (login is by email alone, no
   // tenant selector in Module 1), not per-tenant.
@@ -138,6 +141,84 @@ model Class {
   @@index([tenantId])
   @@index([teacherId])
   @@map("classes")
+}
+
+enum QuestionType {
+  single_choice
+  multiple_choice
+  true_false
+  short_text
+  numeric
+}
+
+/// A teacher-owned question. The row itself only tracks identity and
+/// ownership — all gradable content lives on `QuestionVersion`.
+/// `currentVersionId` is nullable at the type level only because a
+/// `Question` cannot reference its first `QuestionVersion` until that
+/// row exists (the FK would be circular otherwise); the service layer
+/// creates the `Question` and its v1 `QuestionVersion` in a single
+/// Prisma transaction, so it is never observably null once the
+/// create call returns. Archived (not deleted), matching `Class`.
+model Question {
+  id               String    @id @default(uuid())
+  tenantId         String    @map("tenant_id")
+  teacherId        String    @map("teacher_id")
+  currentVersionId String?   @unique @map("current_version_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  archivedAt       DateTime? @map("archived_at")
+
+  tenant  Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher User              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  versions QuestionVersion[] @relation("QuestionVersions")
+  currentVersion QuestionVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+
+  @@index([tenantId])
+  @@index([teacherId])
+  @@map("questions")
+}
+
+/// Every edit to a `Question` unconditionally creates a new
+/// `QuestionVersion` row rather than mutating in place — nothing can
+/// "use" (reference) a question yet since Activities don't exist
+/// until Module 4, so always-versioning is fully testable now and
+/// avoids a conditional "only version if used" branch that would be
+/// untestable until a later module. `tenantId` is denormalized here
+/// (same pattern as `RosterEntry`) so tenant-scoped queries never need
+/// to join through `Question`.
+///
+/// `correctAnswer` shape depends on `type`:
+///  - single_choice: a single option id (string)
+///  - multiple_choice: an array of option ids (string[])
+///  - true_false: a boolean
+///  - short_text: an array of accepted-answer strings
+///  - numeric: `{ value: number, tolerance?: number }`
+///
+/// No answer-key protection is applied at this layer — Module 3 has
+/// no learner-facing surface yet, so returning the full answer key to
+/// any authenticated (teacher, tenant-scoped) request is an accepted,
+/// documented limitation, not an oversight.
+model QuestionVersion {
+  id            String       @id @default(uuid())
+  questionId    String       @map("question_id")
+  tenantId      String       @map("tenant_id")
+  versionNumber Int          @map("version_number")
+  type          QuestionType
+  prompt        String
+  points        Int          @default(1)
+  hint          String?
+  explanation   String?
+  options       Json?
+  correctAnswer Json         @map("correct_answer")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  question Question @relation("QuestionVersions", fields: [questionId], references: [id], onDelete: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  currentFor Question? @relation("CurrentVersion")
+
+  @@unique([questionId, versionNumber])
+  @@index([tenantId])
+  @@index([questionId])
+  @@map("question_versions")
 }
 
 /// A lightweight, teacher-managed roster record — not a User account.
