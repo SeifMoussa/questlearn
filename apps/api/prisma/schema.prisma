@@ -37,6 +37,8 @@ model Tenant {
   rosterEntries        RosterEntry[]
   questions            Question[]
   questionVersions     QuestionVersion[]
+  activities           Activity[]
+  activityQuestions    ActivityQuestion[]
 
   @@map("tenants")
 }
@@ -57,6 +59,7 @@ model User {
   passwordResetTokens  PasswordResetToken[]
   classes              Class[]
   questions            Question[]
+  activities           Activity[]
 
   // Email uniqueness is scoped globally (login is by email alone, no
   // tenant selector in Module 1), not per-tenant.
@@ -171,6 +174,7 @@ model Question {
   teacher User              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   versions QuestionVersion[] @relation("QuestionVersions")
   currentVersion QuestionVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  activityQuestions ActivityQuestion[] @relation("ActivityQuestionQuestion")
 
   @@index([tenantId])
   @@index([teacherId])
@@ -214,6 +218,7 @@ model QuestionVersion {
   question Question @relation("QuestionVersions", fields: [questionId], references: [id], onDelete: Cascade)
   tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   currentFor Question? @relation("CurrentVersion")
+  pinnedFor ActivityQuestion[] @relation("ActivityQuestionPinnedVersion")
 
   @@unique([questionId, versionNumber])
   @@index([tenantId])
@@ -240,4 +245,70 @@ model RosterEntry {
   @@index([tenantId])
   @@index([classId])
   @@map("roster_entries")
+}
+
+enum ActivityStatus {
+  draft
+  published
+}
+
+/// A teacher-owned quiz built from the question bank. While `draft`,
+/// its `ActivityQuestion` rows resolve content live off each
+/// question's current version. `publish()` is a one-time transition
+/// (see ActivityQuestion doc comment) that pins every row's exact
+/// version and is never reversible — a teacher wanting different
+/// content creates a new activity instead of revising this one.
+/// Archived (not deleted), matching `Class`/`Question`, and archiving
+/// is allowed in any status since it only affects visibility, not the
+/// pinned/live content itself.
+model Activity {
+  id          String         @id @default(uuid())
+  tenantId    String         @map("tenant_id")
+  teacherId   String         @map("teacher_id")
+  title       String
+  status      ActivityStatus @default(draft)
+  publishedAt DateTime?      @map("published_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  archivedAt  DateTime?      @map("archived_at")
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher   User               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  questions ActivityQuestion[]
+
+  @@index([tenantId])
+  @@index([teacherId])
+  @@map("activities")
+}
+
+/// Join row between an `Activity` and a `Question`, ordered via
+/// `order`. `pinnedVersionId` is null while the parent activity is
+/// `draft` — content resolution always falls back to the question's
+/// live `currentVersionId` in that state, so editing a question that's
+/// only referenced by a draft activity is immediately visible in the
+/// builder/preview. At publish time (`ActivitiesService.publish`),
+/// one transaction sets `pinnedVersionId` on every row belonging to
+/// the activity to each question's `currentVersionId` at that exact
+/// moment. From then on, resolution always prefers `pinnedVersionId`
+/// — this is what makes a published activity immutable even though
+/// question versioning (Module 3) remains permanently unconditional:
+/// later edits to the underlying question create new versions, but
+/// this row keeps pointing at the version that existed at publish
+/// time.
+model ActivityQuestion {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  activityId      String    @map("activity_id")
+  questionId      String    @map("question_id")
+  pinnedVersionId String?   @map("pinned_version_id")
+  order           Int
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  activity      Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  question      Question         @relation("ActivityQuestionQuestion", fields: [questionId], references: [id], onDelete: Cascade)
+  pinnedVersion QuestionVersion? @relation("ActivityQuestionPinnedVersion", fields: [pinnedVersionId], references: [id])
+
+  @@index([activityId])
+  @@index([tenantId])
+  @@map("activity_questions")
 }
