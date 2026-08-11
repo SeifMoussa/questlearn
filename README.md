@@ -267,16 +267,111 @@ on first login.
 - [`class-detail.png`](./docs/screenshots/02-classes/class-detail.png)
 - [`join-code-rotated.png`](./docs/screenshots/02-classes/join-code-rotated.png)
 
+## Module 3 — Questions
+
+A teacher-only question bank: create, edit, and archive questions
+across the 5 locked question types, with every edit producing a new,
+immutable version. Nothing outside this module can reference a
+question yet — Activities (Module 4) are what will eventually "use" a
+question in a quiz — so the versioning behavior here is unconditional
+rather than a conditional "only version if referenced" check that
+couldn't be meaningfully tested until later.
+
+**What it adds:**
+
+- `POST /questions`, `GET /questions`, `GET /questions/:id`, `PATCH
+  /questions/:id`, `DELETE /questions/:id` (archive).
+- Real Next.js pages: `/questions` (bank list), `/questions/new`
+  (type-aware create form), `/questions/[id]` (detail — editor view
+  with the answer key, a Preview tab, edit/archive actions), and
+  `/questions/[id]/edit` (reuses the same form component, pre-filled).
+- A "Question bank" link from `/dashboard`.
+- `apps/web/src/lib/api.ts` extended with the question endpoints and
+  types, following the same pattern as the classes client.
+
+**Architecture decisions:**
+
+- **Every edit unconditionally creates a new `QuestionVersion`** and
+  repoints `Question.currentVersionId` at it — there is no partial
+  "patch just this field" edit path. The prior version's row is never
+  touched or deleted, so its content stays queryable exactly as it
+  was shown at the time.
+- **`Question.currentVersionId` is nullable at the schema level only**
+  because a `Question` cannot reference its first `QuestionVersion`
+  until that row exists (the alternative is a circular FK). The
+  service layer creates the `Question` and its v1 `QuestionVersion` in
+  a single Prisma transaction, so the field is never observably null
+  once a create call returns.
+- **`tenantId` is denormalized onto `QuestionVersion`**, the same
+  pattern `RosterEntry` already established for `Class` — every
+  tenant-scoped query can filter on the child row directly without
+  joining through the parent.
+- **Every endpoint is tenant *and* owning-teacher scoped**, and
+  cross-tenant access 404s rather than returning a distinct 403 —
+  identical posture to the classes module.
+- **Archived, not deleted**, matching `Class`.
+- **No concept tagging** — no `Concept` entity or tag fields exist
+  yet; that belongs to the mastery module.
+- **`class-validator` DTOs use a single discriminated shape**, not
+  five separate DTO subclasses: `QuestionPayloadDto` carries every
+  possible field, and a custom `correctAnswerForType` constraint reads
+  the sibling `type` (and, for choice types, `options`) field off the
+  same DTO instance to validate `correctAnswer`'s shape per type —
+  rejecting, for example, a `numeric` question whose
+  `correctAnswer.value` isn't a number, or a `single_choice` question
+  whose `correctAnswer` isn't one of the supplied option ids.
+- **Structured security logging** extends `SecurityLogger` with
+  `question_created`, `question_edited` (including the new version
+  number), and `question_archived`.
+
+**Test coverage:**
+
+- Jest unit tests for the DTO's per-type validation (`apps/api/test/
+  questions/question-payload.dto.spec.ts`) — malformed shapes are
+  rejected for all 5 types, not just the happy path — and the service
+  layer's versioning logic (`questions.service.spec.ts`): version
+  numbers increment from whatever the current version is, not always
+  from 1, and cross-tenant edits/archives 404.
+- Jest integration tests against real Postgres
+  (`apps/api/test/questions/`) — full CRUD, a create → edit → edit
+  lifecycle confirming exactly 3 `QuestionVersion` rows exist and the
+  current version's points reflect the third edit, and tenant
+  isolation (a teacher in tenant A gets a 404 viewing, editing, or
+  archiving a question belonging to tenant B, never a distinct 403).
+- **Playwright** (`apps/web/e2e/questions.spec.ts`): log in as the
+  seeded demo teacher → see the populated question bank → create a new
+  single-choice question through the real form → see it in the bank →
+  open its detail page → edit it (change the prompt) → confirm the
+  version number visibly incremented to 2 → toggle to the preview view
+  and confirm it renders the question without any "(correct)" marker
+  or answer-key element, plus the not-found and unauthenticated-
+  redirect states. This flow also produced the screenshots below.
+
+**Demo data:**
+
+`pnpm db:seed` gives the demo teacher one question of each of the 5
+types (a single-choice geography question, a multiple-choice math
+question, a true/false science question, a short-text chemistry
+question, and a numeric science question) — fictional,
+curriculum-plausible content, no real test material.
+
+**Screenshots** (`docs/screenshots/03-questions/`):
+
+- [`question-bank.png`](./docs/screenshots/03-questions/question-bank.png)
+- [`create-question-form.png`](./docs/screenshots/03-questions/create-question-form.png)
+- [`question-preview.png`](./docs/screenshots/03-questions/question-preview.png)
+
 ## Testing
 
 - **Jest** — unit tests for both apps (health service, auth service,
-  classes service, join-code generation, a render smoke test for the
-  status page) plus real-Postgres integration tests for the auth
-  session lifecycle, classes lifecycle, tenant isolation (auth and
-  classes), and rate limiting.
-- **Playwright** (`apps/web/e2e/`) drives the real auth and class
-  management flows through a real browser against the real running
-  app — see Module 1 and Module 2 above.
+  classes service, questions service, question DTO validation,
+  join-code generation, a render smoke test for the status page) plus
+  real-Postgres integration tests for the auth session lifecycle,
+  classes lifecycle, questions lifecycle and versioning, tenant
+  isolation (auth, classes, and questions), and rate limiting.
+- **Playwright** (`apps/web/e2e/`) drives the real auth, class
+  management, and question bank flows through a real browser against
+  the real running app — see Module 1, Module 2, and Module 3 above.
 
 ## Known limitations
 
@@ -317,6 +412,29 @@ on first login.
   class), so there's nothing for a brute-force attempt to target.
   Rate limiting the eventual redemption endpoint is that future
   module's concern, not something silently skipped here.
+
+**Module 3:**
+
+- **No answer-key protection.** `GET /questions/:id` returns the full
+  answer key (`correctAnswer`) to any authenticated request scoped to
+  the owning teacher's tenant — there is no learner-facing surface in
+  this module yet (Activities don't exist until Module 4), so there's
+  nothing to leak the answer key *to*. The detail page's Preview tab
+  renders the question the way a learner eventually will, with no
+  visual emphasis on the correct answer, but that's a rendering-
+  fidelity concern, not an enforced security boundary yet. Real
+  answer-key protection (hiding `correctAnswer` from any endpoint a
+  learner session can reach) is required once Module 4/5 introduce a
+  learner-facing attempt flow.
+- **No concept tagging.** No `Concept` entity, no tag fields on
+  `Question` or `QuestionVersion` — that belongs to the mastery
+  module.
+- **Only the 5 locked question types** are supported: single choice,
+  multiple choice, true/false, short text, numeric. No matching,
+  ordering, or drag-and-drop types.
+- **No bulk import.** Questions are added one at a time through the
+  form; bulk import (CSV, question-bank exchange formats) is a
+  reasonable future addition but wasn't required for this module.
 
 ## License
 
