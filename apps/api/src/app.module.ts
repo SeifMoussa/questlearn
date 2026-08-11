@@ -7,6 +7,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./auth/auth.module";
 import { ClassesModule } from "./classes/classes.module";
 import { QuestionsModule } from "./questions/questions.module";
+import { ActivitiesModule } from "./activities/activities.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { QuestionsModule } from "./questions/questions.module";
     AuthModule,
     ClassesModule,
     QuestionsModule,
+    ActivitiesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
