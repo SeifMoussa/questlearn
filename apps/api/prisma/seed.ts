@@ -54,6 +54,7 @@ async function main(): Promise<void> {
     }
 
     await seedDemoClasses(prisma, user.tenantId, user.id);
+    await seedDemoQuestions(prisma, user.tenantId, user.id);
   } finally {
     await prisma.$disconnect();
   }
@@ -109,6 +110,114 @@ async function seedDemoClasses(prisma: PrismaClient, tenantId: string, teacherId
   console.log("Seeded demo classes:");
   console.log(`  ${homeroom.name} (join code ${homeroom.joinCode})`);
   console.log(`  ${afterSchool.name} (join code ${afterSchool.joinCode})`);
+}
+
+/**
+ * Fictional, curriculum-plausible demo questions covering all 5
+ * locked question types, so the question-bank screenshot shows
+ * varied real content rather than one type repeated. Idempotent the
+ * same way seedDemoClasses is — skips entirely if the teacher already
+ * has questions, so re-running the seed script never duplicates rows.
+ */
+async function seedDemoQuestions(prisma: PrismaClient, tenantId: string, teacherId: string): Promise<void> {
+  const existingQuestions = await prisma.question.count({ where: { tenantId, teacherId } });
+  if (existingQuestions > 0) {
+    console.log("Demo questions already exist; skipping.");
+    return;
+  }
+
+  type SeedQuestion = Parameters<typeof createSeedQuestion>[3];
+
+  const questions: SeedQuestion[] = [
+    {
+      type: "single_choice",
+      prompt: "Which planet is known as the Red Planet?",
+      points: 1,
+      options: [
+        { id: "a", text: "Venus" },
+        { id: "b", text: "Mars" },
+        { id: "c", text: "Jupiter" },
+      ],
+      correctAnswer: "b",
+      hint: "It's named after the Roman god of war.",
+    },
+    {
+      type: "multiple_choice",
+      prompt: "Which of the following are prime numbers?",
+      points: 2,
+      options: [
+        { id: "a", text: "2" },
+        { id: "b", text: "4" },
+        { id: "c", text: "7" },
+        { id: "d", text: "9" },
+      ],
+      correctAnswer: ["a", "c"],
+    },
+    {
+      type: "true_false",
+      prompt: "The Earth revolves around the Sun.",
+      points: 1,
+      correctAnswer: true,
+    },
+    {
+      type: "short_text",
+      prompt: "What is the chemical symbol for water?",
+      points: 1,
+      correctAnswer: ["H2O", "h2o"],
+      explanation: "Water is composed of two hydrogen atoms and one oxygen atom.",
+    },
+    {
+      type: "numeric",
+      prompt: "What is the boiling point of water at sea level, in Celsius?",
+      points: 1,
+      correctAnswer: { value: 100, tolerance: 1 },
+    },
+  ];
+
+  for (const question of questions) {
+    await createSeedQuestion(prisma, tenantId, teacherId, question);
+  }
+
+  console.log(`Seeded ${questions.length} demo questions (one per question type).`);
+}
+
+async function createSeedQuestion(
+  prisma: PrismaClient,
+  tenantId: string,
+  teacherId: string,
+  question: {
+    type: "single_choice" | "multiple_choice" | "true_false" | "short_text" | "numeric";
+    prompt: string;
+    points: number;
+    options?: { id: string; text: string }[];
+    correctAnswer: unknown;
+    hint?: string;
+    explanation?: string;
+  },
+): Promise<void> {
+  const created = await prisma.question.create({
+    data: { tenantId, teacherId },
+  });
+
+  const version = await prisma.questionVersion.create({
+    data: {
+      questionId: created.id,
+      tenantId,
+      versionNumber: 1,
+      type: question.type,
+      prompt: question.prompt,
+      points: question.points,
+      hint: question.hint ?? null,
+      explanation: question.explanation ?? null,
+      options: question.options ?? undefined,
+      correctAnswer: question.correctAnswer as never,
+    },
+  });
+
+  await prisma.question.update({
+    where: { id: created.id },
+    data: { currentVersionId: version.id },
+  });
 }
 
 main().catch((error) => {

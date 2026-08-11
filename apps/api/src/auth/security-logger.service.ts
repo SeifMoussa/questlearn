@@ -14,7 +14,10 @@ export type SecurityEvent =
   | "class_archived"
   | "join_code_rotated"
   | "roster_entry_added"
-  | "roster_entry_removed";
+  | "roster_entry_removed"
+  | "question_created"
+  | "question_edited"
+  | "question_archived";
 
 /**
  * Structured, append-only logging for auth events. Deliberately never
