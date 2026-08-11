@@ -69,10 +69,18 @@ describe("activities tenant isolation (integration)", () => {
   });
 
   afterAll(async () => {
-    await prisma.activityQuestion.deleteMany({ where: { activityId: activityBId } });
-    await prisma.activity.deleteMany({ where: { id: activityBId } });
-    await prisma.questionVersion.deleteMany({ where: { questionId: questionBId } });
-    await prisma.question.deleteMany({ where: { id: questionBId } });
+    // Guarded on each id being set: if beforeAll threw partway through,
+    // an unguarded deleteMany({ where: { activityId: undefined } }) (or
+    // similar) would have no filter at all in Prisma and wipe every row
+    // in the table, not just this test's own data.
+    if (activityBId) {
+      await prisma.activityQuestion.deleteMany({ where: { activityId: activityBId } });
+      await prisma.activity.deleteMany({ where: { id: activityBId } });
+    }
+    if (questionBId) {
+      await prisma.questionVersion.deleteMany({ where: { questionId: questionBId } });
+      await prisma.question.deleteMany({ where: { id: questionBId } });
+    }
     await prisma.user.deleteMany({ where: { email: { in: [emailA, emailB] } } });
     await app.close();
   });

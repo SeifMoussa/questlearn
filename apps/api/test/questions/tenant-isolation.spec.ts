@@ -59,8 +59,14 @@ describe("questions tenant isolation (integration)", () => {
   });
 
   afterAll(async () => {
-    await prisma.questionVersion.deleteMany({ where: { questionId: questionBId } });
-    await prisma.question.deleteMany({ where: { id: questionBId } });
+    // Guarded on questionBId being set: if beforeAll threw before it was
+    // assigned, an unguarded deleteMany({ where: { questionId: undefined } })
+    // would have no filter at all in Prisma and wipe every row in the
+    // table, not just this test's own data.
+    if (questionBId) {
+      await prisma.questionVersion.deleteMany({ where: { questionId: questionBId } });
+      await prisma.question.deleteMany({ where: { id: questionBId } });
+    }
     await prisma.user.deleteMany({ where: { email: { in: [emailA, emailB] } } });
     await app.close();
   });

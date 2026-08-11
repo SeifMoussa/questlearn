@@ -47,8 +47,18 @@ describe("activities lifecycle (integration)", () => {
   });
 
   afterAll(async () => {
-    await prisma.activityQuestion.deleteMany({ where: { tenantId: (await prisma.user.findUnique({ where: { email } }))?.tenantId } });
-    await prisma.activity.deleteMany({ where: { teacherId: (await prisma.user.findUnique({ where: { email } }))?.id } });
+    // Guarded on the user actually existing: if beforeAll threw before
+    // creating it, an unguarded deleteMany keyed on `user?.tenantId` /
+    // `user?.id` would resolve to `undefined`, which Prisma treats as
+    // "no filter on this field" -- wiping every row in the table, not
+    // just this test's own data. `questionIds` is safe as-is: it stays
+    // `[]` (not undefined) if the creation loop never ran, and
+    // `{ in: [] }` is a well-defined "match nothing" filter.
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      await prisma.activityQuestion.deleteMany({ where: { tenantId: user.tenantId } });
+      await prisma.activity.deleteMany({ where: { teacherId: user.id } });
+    }
     await prisma.questionVersion.deleteMany({ where: { questionId: { in: questionIds } } });
     await prisma.question.deleteMany({ where: { id: { in: questionIds } } });
     await prisma.user.deleteMany({ where: { email } });
