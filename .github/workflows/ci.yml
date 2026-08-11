@@ -41,7 +41,7 @@ jobs:
       SESSION_SECRET: ci-session-secret-placeholder-value
       CSRF_SECRET: ci-csrf-secret-placeholder-value
       JWT_SECRET: ci-jwt-secret-placeholder-value
-      AUTH_THROTTLE_LIMIT: 5
+      AUTH_THROTTLE_LIMIT: 20
       AUTH_THROTTLE_TTL_MS: 60000
       API_URL: http://localhost:4000
       WEB_URL: http://localhost:3000
@@ -121,5 +121,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: auth-screenshots
-          path: docs/screenshots/01-authentication/
+          name: screenshots
+          path: docs/screenshots/

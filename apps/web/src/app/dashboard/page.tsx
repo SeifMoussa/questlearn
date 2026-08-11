@@ -58,11 +58,18 @@ export default function DashboardPage() {
         <StatCard label="Mastery" value="—" />
       </div>
 
-      <Link href="/classes">
-        <Button variant="secondary" size="md">
-          Manage classes
-        </Button>
-      </Link>
+      <div style={{ display: "flex", gap: 12 }}>
+        <Link href="/classes">
+          <Button variant="secondary" size="md">
+            Manage classes
+          </Button>
+        </Link>
+        <Link href="/questions">
+          <Button variant="secondary" size="md">
+            Question bank
+          </Button>
+        </Link>
+      </div>
 
       <p style={{ marginTop: 32, color: "var(--text-secondary)", fontSize: 14, maxWidth: 480 }}>
         This is a placeholder dashboard — quests and analytics land in a

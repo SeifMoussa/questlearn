@@ -180,3 +180,70 @@ export function addRosterEntry(
 export function removeRosterEntry(accessToken: string, id: string, rosterId: string) {
   return authedRequest<{ message: string }>(accessToken, "DELETE", `/classes/${id}/roster/${rosterId}`);
 }
+
+export type QuestionType = "single_choice" | "multiple_choice" | "true_false" | "short_text" | "numeric";
+
+export interface QuestionOption {
+  id: string;
+  text: string;
+}
+
+/**
+ * `correctAnswer` shape depends on `type` — see apps/api's
+ * QuestionVersion schema comment for the full mapping (string for
+ * single_choice, string[] for multiple_choice, boolean for
+ * true_false, string[] for short_text, {value,tolerance?} for
+ * numeric). Left untyped here since the client only needs to pass it
+ * through, not interpret it.
+ */
+export type CorrectAnswer = string | string[] | boolean | { value: number; tolerance?: number };
+
+export interface QuestionPayload {
+  type: QuestionType;
+  prompt: string;
+  points?: number;
+  hint?: string;
+  explanation?: string;
+  options?: QuestionOption[];
+  correctAnswer: CorrectAnswer;
+}
+
+export interface QuestionVersion {
+  id: string;
+  versionNumber: number;
+  type: QuestionType;
+  prompt: string;
+  points: number;
+  hint: string | null;
+  explanation: string | null;
+  options: QuestionOption[] | null;
+  correctAnswer: CorrectAnswer;
+  createdAt: string;
+}
+
+export interface QuestionSummary {
+  id: string;
+  createdAt: string;
+  archivedAt: string | null;
+  currentVersion: QuestionVersion;
+}
+
+export function listQuestions(accessToken: string) {
+  return authedRequest<QuestionSummary[]>(accessToken, "GET", "/questions");
+}
+
+export function getQuestion(accessToken: string, id: string) {
+  return authedRequest<QuestionSummary>(accessToken, "GET", `/questions/${id}`);
+}
+
+export function createQuestion(accessToken: string, payload: QuestionPayload) {
+  return authedRequest<QuestionSummary>(accessToken, "POST", "/questions", payload);
+}
+
+export function updateQuestion(accessToken: string, id: string, payload: QuestionPayload) {
+  return authedRequest<QuestionSummary>(accessToken, "PATCH", `/questions/${id}`, payload);
+}
+
+export function archiveQuestion(accessToken: string, id: string) {
+  return authedRequest<QuestionSummary>(accessToken, "DELETE", `/questions/${id}`);
+}

@@ -6,6 +6,7 @@ import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./auth/auth.module";
 import { ClassesModule } from "./classes/classes.module";
+import { QuestionsModule } from "./questions/questions.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ClassesModule } from "./classes/classes.module";
     HealthModule,
     AuthModule,
     ClassesModule,
+    QuestionsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
