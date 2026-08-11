@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Badge, Button, Tabs } from "@questlearn/design-system";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError, QuestionSummary, archiveQuestion, getQuestion } from "@/lib/api";
+import { QuestionRenderer } from "@/components/QuestionRenderer";
 
 type LoadState = "loading" | "loaded" | "not-found" | "error";
 
@@ -57,58 +58,6 @@ function AnswerKey({ question }: { question: QuestionSummary }) {
       Correct value: {numeric.value}
       {numeric.tolerance !== undefined ? ` (± ${numeric.tolerance})` : ""}
     </p>
-  );
-}
-
-/**
- * Renders the question the way a future learner will see it — no
- * visual emphasis on which option/answer is correct. This is a
- * rendering-fidelity preview, not an enforced security boundary: the
- * detail endpoint itself always returns the full answer key (see
- * apps/api's QuestionsService doc comment), since there's no
- * learner-facing surface to protect it from yet in this module.
- */
-function LearnerPreview({ question }: { question: QuestionSummary }) {
-  const v = question.currentVersion;
-
-  return (
-    <div data-testid="learner-preview" style={{ maxWidth: 480 }}>
-      <p style={{ fontSize: 16, color: "var(--text-primary)", marginBottom: 16 }}>{v.prompt}</p>
-
-      {(v.type === "single_choice" || v.type === "multiple_choice") && (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {(v.options ?? []).map((option) => (
-            <li key={option.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "6px 0" }}>
-              <input type={v.type === "single_choice" ? "radio" : "checkbox"} disabled readOnly />
-              <span>{option.text}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {v.type === "true_false" && (
-        <div style={{ display: "flex", gap: 16 }}>
-          <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input type="radio" disabled readOnly /> True
-          </label>
-          <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input type="radio" disabled readOnly /> False
-          </label>
-        </div>
-      )}
-
-      {v.type === "short_text" && (
-        <input type="text" disabled placeholder="Type your answer" style={{ width: "100%", padding: 10, borderRadius: "var(--radius-md)", border: "1px solid var(--border-default)" }} />
-      )}
-
-      {v.type === "numeric" && (
-        <input type="number" disabled placeholder="Enter a number" style={{ width: "100%", padding: 10, borderRadius: "var(--radius-md)", border: "1px solid var(--border-default)" }} />
-      )}
-
-      {v.hint && (
-        <p style={{ marginTop: 16, fontSize: 13, color: "var(--text-secondary)" }}>Hint: {v.hint}</p>
-      )}
-    </div>
   );
 }
 
@@ -254,7 +203,7 @@ export default function QuestionDetailPage() {
             <AnswerKey question={question} />
           </div>
         ) : (
-          <LearnerPreview question={question} />
+          <QuestionRenderer question={question.currentVersion} />
         )}
       </section>
     </main>

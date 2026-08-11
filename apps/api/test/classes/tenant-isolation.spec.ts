@@ -64,8 +64,14 @@ describe("classes tenant isolation (integration)", () => {
   });
 
   afterAll(async () => {
-    await prisma.rosterEntry.deleteMany({ where: { classId: classBId } });
-    await prisma.class.deleteMany({ where: { id: classBId } });
+    // Guarded on classBId being set: if beforeAll threw before it was
+    // assigned, an unguarded deleteMany({ where: { classId: undefined } })
+    // would have no filter at all in Prisma and wipe every row in the
+    // table, not just this test's own data.
+    if (classBId) {
+      await prisma.rosterEntry.deleteMany({ where: { classId: classBId } });
+      await prisma.class.deleteMany({ where: { id: classBId } });
+    }
     await prisma.user.deleteMany({ where: { email: { in: [emailA, emailB] } } });
     await app.close();
   });

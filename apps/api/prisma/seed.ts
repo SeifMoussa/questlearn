@@ -55,6 +55,7 @@ async function main(): Promise<void> {
 
     await seedDemoClasses(prisma, user.tenantId, user.id);
     await seedDemoQuestions(prisma, user.tenantId, user.id);
+    await seedDemoActivities(prisma, user.tenantId, user.id);
   } finally {
     await prisma.$disconnect();
   }
@@ -218,6 +219,71 @@ async function createSeedQuestion(
     where: { id: created.id },
     data: { currentVersionId: version.id },
   });
+}
+
+/**
+ * One draft and one published demo activity, built from the questions
+ * `seedDemoQuestions` already created (reused by id, no duplicate
+ * seed questions). Idempotent the same way as the other seed helpers
+ * — skips entirely if the teacher already has any activity, so
+ * re-running the seed script never duplicates rows.
+ */
+async function seedDemoActivities(prisma: PrismaClient, tenantId: string, teacherId: string): Promise<void> {
+  const existingActivities = await prisma.activity.count({ where: { tenantId, teacherId } });
+  if (existingActivities > 0) {
+    console.log("Demo activities already exist; skipping.");
+    return;
+  }
+
+  const questions = await prisma.question.findMany({
+    where: { tenantId, teacherId, archivedAt: null },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (questions.length === 0) {
+    console.log("No demo questions found; skipping demo activities.");
+    return;
+  }
+
+  const draft = await prisma.activity.create({
+    data: { tenantId, teacherId, title: "Draft: Solar System & Numbers Review", status: "draft" },
+  });
+  await prisma.activityQuestion.createMany({
+    data: questions.slice(0, 3).map((q, index) => ({
+      tenantId,
+      activityId: draft.id,
+      questionId: q.id,
+      order: index,
+    })),
+  });
+
+  const published = await prisma.activity.create({
+    data: {
+      tenantId,
+      teacherId,
+      title: "Published: Science & Math Fundamentals",
+      status: "published",
+      publishedAt: new Date(),
+    },
+  });
+  const publishedQuestions = questions.slice(0, Math.min(5, questions.length));
+  await prisma.$transaction(
+    publishedQuestions.map((q, index) =>
+      prisma.activityQuestion.create({
+        data: {
+          tenantId,
+          activityId: published.id,
+          questionId: q.id,
+          order: index,
+          pinnedVersionId: q.currentVersionId,
+        },
+      }),
+    ),
+  );
+
+  console.log("Seeded demo activities:");
+  console.log(`  ${draft.title} (draft, ${Math.min(3, questions.length)} questions)`);
+  console.log(`  ${published.title} (published, ${publishedQuestions.length} questions)`);
 }
 
 main().catch((error) => {

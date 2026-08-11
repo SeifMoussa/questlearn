@@ -361,17 +361,153 @@ curriculum-plausible content, no real test material.
 - [`create-question-form.png`](./docs/screenshots/03-questions/create-question-form.png)
 - [`question-preview.png`](./docs/screenshots/03-questions/question-preview.png)
 
+## Module 4 — Activities
+
+Teachers build quizzes ("activities") from the question bank: draft →
+add/order/remove questions → publish. Publishing is a one-time,
+irreversible transition that freezes the activity's exact content
+forever, even though the underlying questions keep versioning normally.
+
+**What it adds:**
+
+- `POST /activities`, `GET /activities`, `GET /activities/:id`, `PATCH
+  /activities/:id` (rename, draft-only), `POST
+  /activities/:id/questions` (add), `DELETE
+  /activities/:id/questions/:activityQuestionId` (remove, draft-only),
+  `PATCH /activities/:id/questions/reorder` (draft-only), `POST
+  /activities/:id/publish`, `DELETE /activities/:id` (archive, any
+  status).
+- Real Next.js pages: `/activities` (list, status badges, question
+  counts), `/activities/new` (create form), `/activities/[id]` (the
+  builder — ordered question list with move-up/move-down and remove
+  controls, a question-bank picker, a confirmation-gated Publish
+  button — which becomes a read-only, clearly-locked view once
+  published), and `/activities/[id]/preview` (renders every question
+  in order, learner-style).
+- `QuestionRenderer` (`apps/web/src/components/QuestionRenderer.tsx`)
+  extracted out of the Module 3 single-question preview so both the
+  question-bank preview and this module's full-activity preview share
+  exactly one "render a question learner-style, no answer-key
+  emphasis" implementation instead of two copies that could drift.
+- An "Activities" link from `/dashboard`, and `apps/web/src/lib/api.ts`
+  extended with the activity endpoints and types.
+
+**Architecture decisions:**
+
+- **Draft activities reference questions live; publishing pins exact
+  versions.** `ActivityQuestion.pinnedVersionId` stays `null` while
+  the parent activity is `draft` — the builder and preview always
+  resolve to the question's *current* `currentVersionId`, so editing a
+  question that's only used by draft activities is visible
+  immediately. `POST /activities/:id/publish` runs one transaction
+  that sets `pinnedVersionId` on every row to each question's
+  `currentVersionId` *at that exact moment*, then flips the activity
+  to `published`. All content resolution (`ActivitiesService`'s
+  `resolveContent`) prefers `pinnedVersionId` whenever it's set,
+  falling back to the live current version only in the draft state.
+  This is the single correctness property the whole module rests on,
+  and it works cleanly *because* Module 3's question versioning is
+  permanently unconditional (every edit — used or not — creates a new
+  version and repoints `currentVersionId`, never mutates a version row
+  in place): the pin is just "the version id that existed right then,"
+  and nothing can ever retroactively change what that id points to.
+- **Publishing is one-time and irreversible.** No unpublish, no
+  revising a published activity's title/questions/order — a teacher
+  wanting different content creates a new activity. This keeps
+  "published" a hard invariant rather than a soft one some later code
+  path could quietly violate.
+- **No drag-and-drop reordering** — move-up/move-down only, driven by
+  `PATCH /activities/:id/questions/reorder`, which validates the
+  submitted id array is exactly the activity's current question-id
+  set (no more, no less) before reassigning `order`.
+- **No per-activity point overrides** — a question's points always
+  come from its pinned/current version as-is.
+- **Publishing requires at least 1 question**; publishing an empty
+  activity is rejected.
+- **Archiving is allowed in any status** (draft or published) since
+  it's visibility-only — it never touches `ActivityQuestion` rows or
+  pinned versions, unlike every other write in this module.
+- **Every endpoint is tenant *and* owning-teacher scoped**, 404 (never
+  a distinct 403) on cross-tenant or nonexistent access, matching
+  classes and questions.
+- **Structured security logging** extends `SecurityLogger` with
+  `activity_created`, `activity_question_added`,
+  `activity_question_removed`, `activity_reordered`,
+  `activity_published`, and `activity_archived`.
+
+**Test coverage:**
+
+- Jest unit tests (`apps/api/test/activities/activities.service.spec.ts`):
+  publish pins every row to the correct current version inside one
+  transaction, rejects publishing with zero questions, rejects
+  re-publishing an already-published activity, reorder rejects an id
+  array that doesn't exactly match the current question set, and
+  draft-only guards reject rename/add/remove/reorder against a
+  published activity.
+- Jest integration tests against real Postgres
+  (`apps/api/test/activities/`): a full lifecycle — create → add 3
+  questions → reorder → publish → confirm every `ActivityQuestion.
+  pinnedVersionId` matches what was each question's current version at
+  that moment — plus tenant isolation (every activity endpoint 404s
+  for a teacher outside the owning tenant). **The single most important
+  test in this module** publishes an activity, then edits one of its
+  underlying questions (creating a new version, per Module 3's
+  unconditional-versioning behavior), then re-fetches the published
+  activity's detail and asserts the resolved content for that question
+  is unchanged — proving the immutability guarantee holds against real
+  data and a real subsequent edit, not just that the pinning code
+  compiles.
+- **Playwright** (`apps/web/e2e/activities.spec.ts`): log in as the
+  seeded demo teacher → create an activity → add 3 seeded questions →
+  reorder them with the move-up/move-down controls → open the draft
+  preview (confirms live content, no answer-key emphasis) → publish
+  behind the confirmation dialog → confirm the read-only "Published —
+  locked" state (no publish/add/remove/reorder controls remain) →
+  edit one of the underlying questions via `/questions/[id]/edit` →
+  return to the published activity's preview and assert it still shows
+  the pre-edit prompt — the visual, browser-driven proof of
+  immutability — plus not-found and unauthenticated-redirect states.
+  This flow also produced the screenshots below.
+
+**Demo data:**
+
+`pnpm db:seed` gives the demo teacher one draft activity ("Draft: Solar
+System & Numbers Review", 3 of the seeded questions, live content) and
+one published activity ("Published: Science & Math Fundamentals", 5 of
+the seeded questions, pinned at seed time) — both built from the
+existing seeded questions, no duplicate seed content.
+
+**Screenshots** (`docs/screenshots/04-activities/`):
+
+- [`activity-builder.png`](./docs/screenshots/04-activities/activity-builder.png)
+- [`question-ordering.png`](./docs/screenshots/04-activities/question-ordering.png)
+- [`learner-preview.png`](./docs/screenshots/04-activities/learner-preview.png)
+
+**Known limitations:**
+
+- **No drag-and-drop reordering** — move-up/move-down controls only.
+- **No unpublish and no revising a published activity** — structural
+  changes require creating a new activity.
+- **No per-activity point overrides** — points always come from the
+  pinned/current question version.
+- **No answer-key protection**, same accepted limitation as Module 3 —
+  there is still no learner-facing attempt flow (Module 5) for a
+  correct answer to leak *to*; the preview page is a rendering-fidelity
+  choice, not an enforced boundary yet.
+
 ## Testing
 
 - **Jest** — unit tests for both apps (health service, auth service,
-  classes service, questions service, question DTO validation,
-  join-code generation, a render smoke test for the status page) plus
-  real-Postgres integration tests for the auth session lifecycle,
-  classes lifecycle, questions lifecycle and versioning, tenant
-  isolation (auth, classes, and questions), and rate limiting.
+  classes service, questions service, activities service, question DTO
+  validation, join-code generation, a render smoke test for the status
+  page) plus real-Postgres integration tests for the auth session
+  lifecycle, classes lifecycle, questions lifecycle and versioning,
+  activities lifecycle and publish-immutability, tenant isolation
+  (auth, classes, questions, and activities), and rate limiting.
 - **Playwright** (`apps/web/e2e/`) drives the real auth, class
-  management, and question bank flows through a real browser against
-  the real running app — see Module 1, Module 2, and Module 3 above.
+  management, question bank, and activity-builder flows through a real
+  browser against the real running app — see Module 1 through Module 4
+  above.
 
 ## Known limitations
 
