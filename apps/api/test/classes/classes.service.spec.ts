@@ -39,6 +39,7 @@ describe("ClassesService", () => {
     service = new ClassesService(
       prisma as unknown as PrismaService,
       new SecurityLogger(),
+      {} as never, // AuthService — unused by the paths under test here (see join.integration coverage)
     );
   });
 
