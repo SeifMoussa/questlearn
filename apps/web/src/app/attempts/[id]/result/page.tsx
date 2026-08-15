@@ -13,6 +13,16 @@ function formatAnswer(value: unknown): string {
   if (value === null || value === undefined) return "(no answer)";
   if (Array.isArray(value)) return value.length ? value.join(", ") : "(no answer)";
   if (typeof value === "boolean") return value ? "True" : "False";
+  if (typeof value === "object") {
+    // Numeric questions' correctAnswer is `{ value, tolerance? }`.
+    const numeric = value as { value?: unknown; tolerance?: unknown };
+    if (typeof numeric.value === "number") {
+      return typeof numeric.tolerance === "number" && numeric.tolerance > 0
+        ? `${numeric.value} (± ${numeric.tolerance})`
+        : String(numeric.value);
+    }
+    return JSON.stringify(value);
+  }
   return String(value);
 }
 
