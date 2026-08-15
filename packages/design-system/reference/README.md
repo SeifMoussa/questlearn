@@ -1,9 +1,10 @@
 # Reference screens
 
-`auth-screens.jsx` and `marketing-site.jsx` are pulled verbatim from the
-design system project's `ui_kits/`. They are **not runnable in this repo
-as-is** — they read components off a `window.QuestLearnDesignSystem_*`
-global that only exists inside that project's own preview runtime.
+`auth-screens.jsx` and `marketing-site.jsx` are early full-screen layout
+mockups. They are **not runnable in this repo as-is** — they read
+components off a `window.QuestLearnDesignSystem_*` global that isn't
+part of this repo's actual build, only of the standalone preview these
+were originally sketched in.
 
 They exist here as layout/copy reference for building the real pages in
 `apps/web`: full-screen composition, spacing, copy tone, and how the
