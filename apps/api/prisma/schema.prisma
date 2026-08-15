@@ -21,8 +21,9 @@ enum TenantPlan {
   free
 }
 
-/// A tenant is a teacher's workspace. Module 1 only ever creates
-/// teacher-owned tenants (registration is teacher-only in this module).
+/// A tenant is a teacher's workspace. Only teacher registration ever
+/// creates a new tenant; learners who redeem a join code join an
+/// existing tenant (their teacher's) rather than creating one.
 model Tenant {
   id        String     @id @default(uuid())
   name      String
