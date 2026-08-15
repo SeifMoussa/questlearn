@@ -490,24 +490,212 @@ existing seeded questions, no duplicate seed content.
   changes require creating a new activity.
 - **No per-activity point overrides** — points always come from the
   pinned/current question version.
-- **No answer-key protection**, same accepted limitation as Module 3 —
-  there is still no learner-facing attempt flow (Module 5) for a
-  correct answer to leak *to*; the preview page is a rendering-fidelity
-  choice, not an enforced boundary yet.
+- ~~No answer-key protection.~~ Resolved in Module 5 for the
+  learner-facing attempt surface; the activity preview page itself
+  remains a teacher-only, rendering-fidelity choice (no visual
+  emphasis on the correct answer), not an enforced boundary — it's
+  reached only through the teacher-scoped `/activities/:id` endpoints.
+
+## Module 5 — Assignments and Attempts
+
+Teachers assign a published activity to a class with a due date;
+learners — now real accounts, not roster placeholders — join with a
+code, take the quiz, and get an automatically graded, tamper-proof
+result. This module touches every prior module (auth, classes,
+questions, activities) more than any before it: assignments only
+accept published activities, attempts grade exclusively against the
+version an activity pinned at publish time, and the learner identity
+gap left open since Module 2 is resolved decisively here.
+
+**What it adds:**
+
+- `POST /classes/join` — public join-code redemption. With no valid
+  learner access token, it creates a real `User{role: learner}` +
+  `RosterEntry` and immediately issues a session in the same shape
+  `/auth/login` returns (register-then-login collapsed into one step).
+  With a valid learner token already present, it skips account
+  creation and just links the existing learner to the new class.
+  Redeeming a code for a class already actively joined is a no-op that
+  returns the existing enrollment.
+- `POST /assignments`, `GET /assignments`, `GET /assignments/mine`
+  (the learner-facing list, across every class the caller is enrolled
+  in), `GET /assignments/:id`, `PATCH /assignments/:id` (`dueAt` only).
+- `POST /assignments/:id/attempts/start` (idempotent — returns the
+  existing attempt on a repeat call), `GET /attempts/:id`, `PATCH
+  /attempts/:id/responses/:activityQuestionId` (autosave), `POST
+  /attempts/:id/submit` (the atomic claim pattern — see below).
+- Real Next.js pages: `/join` (public redemption form, branches on
+  whether the visitor is already an authenticated learner),
+  `/activities/[id]/assign` (class picker + due date, lists existing
+  assignments for that activity), `/dashboard` (now branches on
+  `user.role` — the learner branch lists assignments with status and
+  due date), `/assignments/[id]/attempt` (the single-page activity
+  player, autosave per response), `/attempts/[id]/result` (score +
+  per-question breakdown with the correct answer now shown).
+- `QuestionRenderer` gained an interactive mode (`value`/`onChange`
+  props) alongside its existing read-only rendering, so the attempt
+  player reuses the exact same per-type branches the read-only preview
+  already had instead of a second parallel component.
+
+**Architecture decisions:**
+
+- **Real learner accounts, not a parallel login.** Learners are
+  `User{role: learner}` rows authenticating through the exact same
+  `/auth/login` endpoint teachers use. The one deliberate difference:
+  learners skip the email-verification gate entirely (`emailVerifiedAt`
+  is set immediately at redemption) — a valid, unexpired, rate-limited
+  join code is the trust proxy, not a confirmed inbox.
+  `RosterEntry.userId` (new nullable FK) distinguishes a
+  redemption-created row from a Module 2 teacher-added placeholder;
+  redemption never fuzzy-matches an existing placeholder by name, it
+  always creates a new row.
+- **Assignments only accept published activities.** Creating an
+  assignment from a draft activity is rejected — this is what makes it
+  safe for attempt grading to trust `ActivityQuestion.pinnedVersionId`
+  unconditionally, never falling back to live content. If a pinned
+  version is ever unexpectedly null when grading (structurally
+  impossible given that constraint), `AttemptsService` throws rather
+  than silently grading against live content — a deliberate fail-loud
+  choice.
+- **The atomic claim pattern makes submit idempotent by construction,
+  not by convention.** `Attempt.status` only ever transitions to
+  `submitted` via a `updateMany({ where: { status: "in_progress" } })`
+  run *inside* the same transaction as grading — not as a separate
+  statement before it. Only the caller whose `updateMany` reports
+  `count === 1` grades; every other caller (a genuine duplicate
+  request, or the same request racing itself) sees `count === 0` and
+  returns the already-graded result unchanged. Doing the claim and the
+  grade in one transaction matters for true concurrency: with two
+  separate statements, a losing request could read the attempt back
+  after the winner's claim commits but before the winner's grade
+  commits, observing `status: "submitted"` with a still-null `score` —
+  a race this module's own tests caught and closed during development.
+- **Generic partial-credit scoring, one formula for all five question
+  types.** `fraction = correct/total_correct − incorrect/total_incorrect`,
+  clamped to [0, 1] (Master Spec §6.6), implemented once in
+  `apps/api/src/attempts/scoring.ts` against "correct set" vs
+  "incorrect universe" vs "selected set" abstractions — `multiple_choice`
+  is the only type where those sets have more than one member, which is
+  what produces real partial credit; every other type has
+  `|correctSet| = 1`, so the identical math degenerates to binary 0/1.
+  Per-question `pointsAwarded` is that fraction times the question's
+  points; the attempt's overall `score` is `sum(pointsAwarded) /
+  sum(points)`, clamped again.
+- **Answer-key protection is enforced at the service layer, not the
+  frontend.** `AttemptsService`'s single content-resolution path strips
+  `correctAnswer`/`isCorrect`/`pointsAwarded` from every question
+  unless `attempt.status === "submitted"` — verified by a real test
+  asserting the raw JSON response body lacks those fields before
+  submit and has them after, closing the limitation Modules 3 and 4
+  both explicitly deferred ("nothing to leak the answer key to yet").
+- **A learner without an active roster entry for the assignment's
+  class gets 404, not 403, starting an attempt.** This is a deliberate
+  extension of the existing tenant-scoping posture to a learner-facing
+  endpoint for the first time: the learner does already know the
+  assignment exists (it's only ever reachable from their own
+  dashboard), but 403 would still leak the distinction between "this
+  assignment doesn't exist" and "you were removed from this class" —
+  404 doesn't, and staying consistent with every other module's
+  not-found-not-forbidden posture was judged more valuable than a more
+  "technically accurate" 403 here.
+- **Single-page player, not one-question-at-a-time.** All of an
+  assignment's questions render on one page with per-response autosave
+  on change — simpler to build and test than a paginated flow, at the
+  cost of a longer scroll for large activities.
+- **Structured security logging** extends `SecurityLogger` with
+  `learner_joined_class`, `assignment_created`, `assignment_updated`,
+  `attempt_started`, and `attempt_submitted`.
+- **The join-code redemption endpoint shares the same rate-limiting
+  treatment as `/auth/login`** (`AUTH_THROTTLE_LIMIT`/
+  `AUTH_THROTTLE_TTL_MS`), closing the brute-force gap explicitly
+  flagged as a known limitation back in Module 2.
+
+**Test coverage:**
+
+- Jest unit tests: the scoring formula
+  (`apps/api/test/attempts/scoring.spec.ts`) — hand-computed
+  partial-credit cases for `multiple_choice`, binary cases for the
+  other four types, floor/ceiling clamping at both extremes — and the
+  submit claim logic in isolation
+  (`apps/api/test/attempts/attempts.service.spec.ts`) against a mocked
+  Prisma client, asserting the graded-vs-not-graded branch depends only
+  on the transaction-scoped `updateMany` count.
+- Jest integration tests against real Postgres
+  (`apps/api/test/attempts/attempts.integration.spec.ts`,
+  `apps/api/test/assignments/tenant-isolation.spec.ts`,
+  `apps/api/test/classes/join-rate-limit.spec.ts`): a full lifecycle —
+  redeem a join code (asserting it creates a real `User` +
+  `RosterEntry` + session) → start an attempt → autosave every response
+  → submit → assert the score against a hand-computed expected value.
+  **THE IDEMPOTENCY PROOF** is two tests: a sequential duplicate submit
+  after the first has completed, and a true-concurrency `Promise.all`
+  double submit — both assert identical scores/`submittedAt` and that
+  `AttemptResponse.pointsAwarded` never changes on the second call. A
+  **frozen-content proof** submits an attempt, edits the underlying
+  question via the real `PATCH /questions/:id` (bumping its version),
+  and re-fetches the result to confirm its content and score are
+  unchanged. An answer-key leakage test asserts the raw response body
+  lacks `correctAnswer`/`isCorrect`/`pointsAwarded` pre-submit and has
+  them post-submit. Plus tenant isolation for assignments, roster
+  membership authorization (an unenrolled learner 404s starting an
+  attempt), and a join-code brute-force rate-limit test.
+- **Playwright** (`apps/web/e2e/assignments-attempts.spec.ts`): the
+  demo teacher assigns the seeded published activity to a new class →
+  a brand-new learner redeems the join code through the real `/join`
+  form (not an API shortcut) → lands on the dashboard and sees the
+  assignment → starts it, answering every question (exercising
+  autosave) → submits → sees the result with a real computed score.
+  This flow produced the screenshots below, and runs alongside the
+  other four spec files in the same serial, single-worker suite.
+
+**Demo data:**
+
+`pnpm db:seed` adds a demo learner account
+(`demo.learner@questlearn.dev` / `DemoLearner2026!`) enrolled in
+"Period 3 — Earth Science" via a real redemption-shaped `RosterEntry`
+(`userId` set), one assignment (the seeded published activity, due in
+7 days), and one already-submitted attempt with a real computed score
+— not a hardcoded number — so the dashboard and result screenshots
+show populated content without a manual redemption step.
+
+**Screenshots** (`docs/screenshots/05-assignments-attempts/`):
+
+- [`assignment-form.png`](./docs/screenshots/05-assignments-attempts/assignment-form.png)
+- [`learner-dashboard.png`](./docs/screenshots/05-assignments-attempts/learner-dashboard.png)
+- [`activity-player.png`](./docs/screenshots/05-assignments-attempts/activity-player.png)
+- [`result.png`](./docs/screenshots/05-assignments-attempts/result.png)
+
+**Known limitations:**
+
+- **No mastery/XP/gamification/quest hooks.** This module stops at
+  "score computed and stored on the `Attempt`" — no mastery
+  recalculation, XP ledger, badge rules, or quest progress, even
+  stubbed. That's Modules 6 through 9's job.
+- **Single-page player, not one-question-at-a-time** — see the
+  architecture decision above.
+- **No teacher grade-override UI.** `Attempt.score` is
+  system-computed only in this module; a teacher-facing override with
+  an audit trail (Master Spec §6/§12) is future work.
+- **No CSV roster import for learners** — redemption is the only
+  learner-enrollment path introduced this module; teacher-added
+  placeholder rows from Module 2 still exist side by side.
 
 ## Testing
 
 - **Jest** — unit tests for both apps (health service, auth service,
-  classes service, questions service, activities service, question DTO
-  validation, join-code generation, a render smoke test for the status
-  page) plus real-Postgres integration tests for the auth session
-  lifecycle, classes lifecycle, questions lifecycle and versioning,
-  activities lifecycle and publish-immutability, tenant isolation
-  (auth, classes, questions, and activities), and rate limiting.
+  classes service, questions service, activities service, assignments
+  scoring, attempt submit-claim logic, question DTO validation,
+  join-code generation, a render smoke test for the status page) plus
+  real-Postgres integration tests for the auth session lifecycle,
+  classes lifecycle, questions lifecycle and versioning, activities
+  lifecycle and publish-immutability, the full assignments/attempts
+  lifecycle (including the idempotency and frozen-content proofs),
+  tenant isolation (auth, classes, questions, activities, and
+  assignments), and rate limiting (auth and join-code redemption).
 - **Playwright** (`apps/web/e2e/`) drives the real auth, class
-  management, question bank, and activity-builder flows through a real
-  browser against the real running app — see Module 1 through Module 4
-  above.
+  management, question bank, activity-builder, and
+  assignment/attempt/result flows through a real browser against the
+  real running app — see Module 1 through Module 5 above.
 
 ## Known limitations
 
@@ -533,35 +721,24 @@ existing seeded questions, no duplicate seed content.
 
 **Module 2:**
 
-- **No learner-facing join flow.** A roster entry is a name (and
-  optional email) the teacher types in — not an account, and nothing
-  a learner can use to log in. The real "redeem a join code" flow is
-  deferred to a later module, once there's learner-facing content
-  (activities, assignments) for a learner session to actually reach.
+- ~~No learner-facing join flow.~~ Resolved in Module 5:
+  `POST /classes/join` creates a real learner account and roster entry
+  in one step.
 - **No CSV roster import.** Roster entries are added one at a time
   through the inline form; bulk import is a reasonable future
   addition but wasn't required for this module's scope.
-- **No join-code brute-force rate limiting yet.** The join-code
-  rotation endpoint is authenticated and tenant/owner-scoped like
-  every other endpoint in this module, but there is no *redemption*
-  endpoint yet (nothing that accepts a bare code and looks up a
-  class), so there's nothing for a brute-force attempt to target.
-  Rate limiting the eventual redemption endpoint is that future
-  module's concern, not something silently skipped here.
+- ~~No join-code brute-force rate limiting yet.~~ Resolved in Module 5:
+  the redemption endpoint shares `AUTH_THROTTLE_LIMIT`/
+  `AUTH_THROTTLE_TTL_MS` with `/auth/login`.
 
 **Module 3:**
 
-- **No answer-key protection.** `GET /questions/:id` returns the full
-  answer key (`correctAnswer`) to any authenticated request scoped to
-  the owning teacher's tenant — there is no learner-facing surface in
-  this module yet (Activities don't exist until Module 4), so there's
-  nothing to leak the answer key *to*. The detail page's Preview tab
-  renders the question the way a learner eventually will, with no
-  visual emphasis on the correct answer, but that's a rendering-
-  fidelity concern, not an enforced security boundary yet. Real
-  answer-key protection (hiding `correctAnswer` from any endpoint a
-  learner session can reach) is required once Module 4/5 introduce a
-  learner-facing attempt flow.
+- ~~No answer-key protection.~~ Resolved in Module 5 for the
+  learner-facing attempt surface: `GET /attempts/:id` strips
+  `correctAnswer`/`isCorrect`/`pointsAwarded` before submit. `GET
+  /questions/:id` itself is still unrestricted to the owning teacher,
+  which remains correct — it's a teacher-only, tenant-scoped endpoint,
+  not one a learner session can reach.
 - **No concept tagging.** No `Concept` entity, no tag fields on
   `Question` or `QuestionVersion` — that belongs to the mastery
   module.
