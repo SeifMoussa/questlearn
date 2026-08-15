@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button, Input } from "@questlearn/design-system";
 import { FormField } from "@/components/FormField";
@@ -25,12 +25,18 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * same step. Both paths hit the same `/classes/join` endpoint (see
  * apps/api's JoinController) and land on /dashboard on success.
  */
-export default function JoinPage() {
+function JoinPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { status, user, accessToken, applySession } = useAuth();
   const alreadyLearner = status === "authenticated" && user?.role === "learner";
 
-  const [form, setForm] = useState<FormState>({ joinCode: "", name: "", email: "", password: "" });
+  const [form, setForm] = useState<FormState>({
+    joinCode: (searchParams.get("code") ?? "").toUpperCase(),
+    name: "",
+    email: "",
+    password: "",
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [banner, setBanner] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -149,5 +155,13 @@ export default function JoinPage() {
         Already have an account? <Link href="/login">Sign in</Link>
       </p>
     </main>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense fallback={null}>
+      <JoinPageInner />
+    </Suspense>
   );
 }

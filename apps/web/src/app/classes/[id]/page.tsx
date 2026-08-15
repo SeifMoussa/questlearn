@@ -30,6 +30,8 @@ export default function ClassDetailPage() {
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [linkCopyFailed, setLinkCopyFailed] = useState(false);
 
   const [rosterName, setRosterName] = useState("");
   const [rosterEmail, setRosterEmail] = useState("");
@@ -92,6 +94,23 @@ export default function ClassDetailPage() {
     }
     const updated = await rotateJoinCode(accessToken, cls.id);
     setCls(updated);
+  }
+
+  async function onCopyJoinLink() {
+    if (!cls) return;
+    const link = `${window.location.origin}/join?code=${cls.joinCode}`;
+    setLinkCopyFailed(false);
+    try {
+      await navigator.clipboard.writeText(link);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // Clipboard access can be denied (Safari's stricter policy, a
+      // non-secure context, permissions blocked) even in a real
+      // user's browser, not just automated ones — fail into a
+      // visible, selectable fallback rather than doing nothing.
+      setLinkCopyFailed(true);
+    }
   }
 
   async function onAddRoster(event: FormEvent) {
@@ -228,9 +247,34 @@ export default function ClassDetailPage() {
         <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16 }}>
           Expires {new Date(cls.joinCodeExpiresAt).toLocaleDateString()}
         </p>
-        <Button variant="secondary" size="sm" onClick={onRotateJoinCode}>
-          Rotate code
-        </Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button variant="secondary" size="sm" onClick={onCopyJoinLink}>
+            {linkCopied ? "Link copied" : "Copy join link"}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={onRotateJoinCode}>
+            Rotate code
+          </Button>
+        </div>
+        {linkCopyFailed && (
+          <div style={{ marginTop: 12 }}>
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
+              Couldn&apos;t copy automatically — select and copy the link below:
+            </p>
+            <input
+              readOnly
+              value={`${window.location.origin}/join?code=${cls.joinCode}`}
+              onFocus={(e) => e.currentTarget.select()}
+              style={{
+                width: "100%",
+                padding: "8px 10px",
+                borderRadius: "var(--radius-md)",
+                border: "1px solid var(--border-default)",
+                fontFamily: "var(--font-mono, monospace)",
+                fontSize: 12,
+              }}
+            />
+          </div>
+        )}
       </section>
 
       <section style={{ marginTop: 32, maxWidth: 560 }}>

@@ -36,10 +36,10 @@ export const envSchema = z.object({
   API_URL: z.string().url().optional(),
   WEB_URL: z.string().url().optional(),
 
-  // Rate limit applied to the sensitive, unauthenticated auth
-  // endpoints (register/login/forgot-password). Configurable so
-  // tests can use a short window instead of waiting out a real
-  // 60-second production window.
+  // Rate limit applied to the sensitive, unauthenticated endpoints:
+  // register/login/forgot-password and join-code redemption.
+  // Configurable so tests can use a short window instead of waiting
+  // out a real 60-second production window.
   AUTH_THROTTLE_LIMIT: z.coerce.number().int().positive().default(5),
   AUTH_THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
 });
