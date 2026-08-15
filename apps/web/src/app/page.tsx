@@ -92,6 +92,11 @@ export default function MarketingPage() {
               Start as a Teacher
             </Button>
           </Link>
+          <Link href="/join">
+            <Button variant="secondary" size="lg">
+              Join a Class
+            </Button>
+          </Link>
         </div>
       </section>
 

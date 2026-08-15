@@ -30,6 +30,7 @@ export default function ClassDetailPage() {
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const [rosterName, setRosterName] = useState("");
   const [rosterEmail, setRosterEmail] = useState("");
@@ -92,6 +93,14 @@ export default function ClassDetailPage() {
     }
     const updated = await rotateJoinCode(accessToken, cls.id);
     setCls(updated);
+  }
+
+  async function onCopyJoinLink() {
+    if (!cls) return;
+    const link = `${window.location.origin}/join?code=${cls.joinCode}`;
+    await navigator.clipboard.writeText(link);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   }
 
   async function onAddRoster(event: FormEvent) {
@@ -228,9 +237,14 @@ export default function ClassDetailPage() {
         <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16 }}>
           Expires {new Date(cls.joinCodeExpiresAt).toLocaleDateString()}
         </p>
-        <Button variant="secondary" size="sm" onClick={onRotateJoinCode}>
-          Rotate code
-        </Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button variant="secondary" size="sm" onClick={onCopyJoinLink}>
+            {linkCopied ? "Link copied" : "Copy join link"}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={onRotateJoinCode}>
+            Rotate code
+          </Button>
+        </div>
       </section>
 
       <section style={{ marginTop: 32, maxWidth: 560 }}>
