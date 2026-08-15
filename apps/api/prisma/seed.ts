@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import * as argon2 from "argon2";
 import { generateJoinCode, joinCodeExpiry } from "../src/classes/join-code.util";
+import { scoreQuestion, overallScore } from "../src/attempts/scoring";
 
 /**
  * Seeds one fictional demo teacher account so the login screen and
@@ -13,6 +14,15 @@ const DEMO_TENANT_NAME = "Maple Grove Elementary (Demo)";
 const DEMO_EMAIL = "demo.teacher@questlearn.dev";
 const DEMO_NAME = "Jordan Rivera";
 const DEMO_PASSWORD = "DemoTeacher2026!";
+
+// A fictional demo learner account — Module 5's real-learner-accounts
+// design decision, seeded here (rather than only ever created through
+// the live /classes/join form) so the learner dashboard/result
+// screenshots have real populated content without a manual redemption
+// step every time the seed script runs.
+const DEMO_LEARNER_EMAIL = "demo.learner@questlearn.dev";
+const DEMO_LEARNER_NAME = "Casey Nguyen";
+const DEMO_LEARNER_PASSWORD = "DemoLearner2026!";
 
 async function main(): Promise<void> {
   const prisma = new PrismaClient({
@@ -56,6 +66,10 @@ async function main(): Promise<void> {
     await seedDemoClasses(prisma, user.tenantId, user.id);
     await seedDemoQuestions(prisma, user.tenantId, user.id);
     await seedDemoActivities(prisma, user.tenantId, user.id);
+    const learner = await seedDemoLearner(prisma, user.tenantId);
+    if (learner) {
+      await seedDemoAssignmentAndAttempt(prisma, user.tenantId, user.id, learner);
+    }
   } finally {
     await prisma.$disconnect();
   }
@@ -284,6 +298,195 @@ async function seedDemoActivities(prisma: PrismaClient, tenantId: string, teache
   console.log("Seeded demo activities:");
   console.log(`  ${draft.title} (draft, ${Math.min(3, questions.length)} questions)`);
   console.log(`  ${published.title} (published, ${publishedQuestions.length} questions)`);
+}
+
+/**
+ * Idempotent the same way as the other seed helpers: skips entirely
+ * if the demo learner already exists. Returns the learner row (found
+ * or freshly created) so `seedDemoAssignmentAndAttempt` can use its
+ * id without a second lookup, or `null` if lookup/creation somehow
+ * fails to produce a usable row.
+ */
+async function seedDemoLearner(
+  prisma: PrismaClient,
+  tenantId: string,
+): Promise<{ id: string; name: string; email: string } | null> {
+  const existing = await prisma.user.findUnique({ where: { email: DEMO_LEARNER_EMAIL } });
+  if (existing) {
+    console.log(`Demo learner already exists (${DEMO_LEARNER_EMAIL}).`);
+    return existing;
+  }
+
+  const passwordHash = await argon2.hash(DEMO_LEARNER_PASSWORD, {
+    type: argon2.argon2id,
+    memoryCost: 19456,
+    timeCost: 2,
+    parallelism: 1,
+  });
+
+  const learner = await prisma.user.create({
+    data: {
+      tenantId,
+      email: DEMO_LEARNER_EMAIL,
+      name: DEMO_LEARNER_NAME,
+      passwordHash,
+      role: "learner",
+      // Learners skip the email-verification gate (Module 5 decision)
+      // — a valid join code is the trust proxy instead.
+      emailVerifiedAt: new Date(),
+    },
+  });
+
+  console.log("Seeded demo learner account:");
+  console.log(`  email:    ${learner.email}`);
+  console.log(`  password: ${DEMO_LEARNER_PASSWORD} (development only)`);
+
+  return learner;
+}
+
+/** A plausible "correct" response for a pinned question version. */
+function correctResponseFor(version: { type: string; correctAnswer: unknown }): unknown {
+  return version.correctAnswer;
+}
+
+/** A plausible but wrong response, shaped correctly for the type. */
+function wrongResponseFor(version: {
+  type: string;
+  correctAnswer: unknown;
+  options: unknown;
+}): unknown {
+  switch (version.type) {
+    case "single_choice": {
+      const options = (version.options as { id: string }[] | null) ?? [];
+      const wrong = options.find((o) => o.id !== version.correctAnswer);
+      return wrong?.id ?? version.correctAnswer;
+    }
+    case "multiple_choice": {
+      const correct = Array.isArray(version.correctAnswer) ? (version.correctAnswer as string[]) : [];
+      // Omit one correct option — a common, realistic partial-credit mistake.
+      return correct.slice(0, Math.max(correct.length - 1, 0));
+    }
+    case "true_false":
+      return !version.correctAnswer;
+    case "short_text":
+      return "an incorrect answer";
+    case "numeric": {
+      const answer = version.correctAnswer as { value: number };
+      return (answer?.value ?? 0) + 50;
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * One assignment (the seeded published activity, assigned to the
+ * "Period 3 — Earth Science" class, due in the future) plus one
+ * already-submitted attempt for the demo learner with a real computed
+ * score — not a hardcoded number — so the dashboard/result screenshots
+ * show genuine populated content. Idempotent on whether the demo
+ * teacher already has any assignment at all.
+ */
+async function seedDemoAssignmentAndAttempt(
+  prisma: PrismaClient,
+  tenantId: string,
+  teacherId: string,
+  learner: { id: string; name: string; email: string },
+): Promise<void> {
+  const existingAssignments = await prisma.assignment.count({ where: { tenantId, teacherId } });
+  if (existingAssignments > 0) {
+    console.log("Demo assignment already exists; skipping.");
+    return;
+  }
+
+  const homeroom = await prisma.class.findFirst({
+    where: { tenantId, teacherId, name: "Period 3 — Earth Science" },
+  });
+  const publishedActivity = await prisma.activity.findFirst({
+    where: { tenantId, teacherId, status: "published" },
+    include: {
+      questions: { orderBy: { order: "asc" }, include: { pinnedVersion: true } },
+    },
+  });
+
+  if (!homeroom || !publishedActivity) {
+    console.log("Missing prerequisite demo class/activity; skipping demo assignment.");
+    return;
+  }
+
+  // Enroll the learner the same shape join-code redemption produces:
+  // a real RosterEntry with userId set, not a teacher-added
+  // placeholder.
+  const existingRoster = await prisma.rosterEntry.findFirst({
+    where: { classId: homeroom.id, userId: learner.id },
+  });
+  if (!existingRoster) {
+    await prisma.rosterEntry.create({
+      data: {
+        tenantId,
+        classId: homeroom.id,
+        userId: learner.id,
+        name: learner.name,
+        email: learner.email,
+      },
+    });
+  }
+
+  const assignment = await prisma.assignment.create({
+    data: {
+      tenantId,
+      teacherId,
+      classId: homeroom.id,
+      activityId: publishedActivity.id,
+      dueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  const attempt = await prisma.attempt.create({
+    data: {
+      tenantId,
+      assignmentId: assignment.id,
+      learnerId: learner.id,
+      status: "submitted",
+      submittedAt: new Date(),
+    },
+  });
+
+  const graded: { pointsAwarded: number; points: number }[] = [];
+
+  for (const [index, aq] of publishedActivity.questions.entries()) {
+    const version = aq.pinnedVersion;
+    if (!version) continue;
+
+    // Answer every question correctly except the second, so the
+    // seeded score is a realistic partial result rather than a flat
+    // 100% — more useful for a screenshot.
+    const response = index === 1 ? wrongResponseFor(version) : correctResponseFor(version);
+    const result = scoreQuestion(
+      { type: version.type, points: version.points, options: version.options, correctAnswer: version.correctAnswer },
+      response,
+    );
+
+    await prisma.attemptResponse.create({
+      data: {
+        tenantId,
+        attemptId: attempt.id,
+        activityQuestionId: aq.id,
+        responseValue: response as never,
+        isCorrect: result.isCorrect,
+        pointsAwarded: result.pointsAwarded,
+      },
+    });
+
+    graded.push({ pointsAwarded: result.pointsAwarded, points: version.points });
+  }
+
+  const score = overallScore(graded);
+  await prisma.attempt.update({ where: { id: attempt.id }, data: { score } });
+
+  console.log(
+    `Seeded demo assignment (${publishedActivity.title} -> ${homeroom.name}) and one submitted attempt (score ${Math.round(score * 100)}%).`,
+  );
 }
 
 main().catch((error) => {
