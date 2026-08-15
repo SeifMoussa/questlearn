@@ -8,6 +8,8 @@ import { AuthModule } from "./auth/auth.module";
 import { ClassesModule } from "./classes/classes.module";
 import { QuestionsModule } from "./questions/questions.module";
 import { ActivitiesModule } from "./activities/activities.module";
+import { AssignmentsModule } from "./assignments/assignments.module";
+import { AttemptsModule } from "./attempts/attempts.module";
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { ActivitiesModule } from "./activities/activities.module";
     ClassesModule,
     QuestionsModule,
     ActivitiesModule,
+    AssignmentsModule,
+    AttemptsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

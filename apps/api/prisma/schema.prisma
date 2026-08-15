@@ -39,6 +39,9 @@ model Tenant {
   questionVersions     QuestionVersion[]
   activities           Activity[]
   activityQuestions    ActivityQuestion[]
+  assignments          Assignment[]
+  attempts             Attempt[]
+  attemptResponses     AttemptResponse[]
 
   @@map("tenants")
 }
@@ -60,6 +63,9 @@ model User {
   classes              Class[]
   questions            Question[]
   activities           Activity[]
+  rosterEntries        RosterEntry[]
+  assignments          Assignment[]
+  attempts             Attempt[]
 
   // Email uniqueness is scoped globally (login is by email alone, no
   // tenant selector in Module 1), not per-tenant.
@@ -137,9 +143,10 @@ model Class {
   createdAt         DateTime  @default(now()) @map("created_at")
   archivedAt        DateTime? @map("archived_at")
 
-  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  teacher User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  roster  RosterEntry[]
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher     User          @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  roster      RosterEntry[]
+  assignments Assignment[]
 
   @@index([tenantId])
   @@index([teacherId])
@@ -226,14 +233,21 @@ model QuestionVersion {
   @@map("question_versions")
 }
 
-/// A lightweight, teacher-managed roster record — not a User account.
-/// Module 2 is teacher-side only; a real learner join/redeem flow is
-/// deferred to a later module. Soft-deleted (removedAt) rather than
+/// A lightweight, teacher-managed roster record. Module 2 created these
+/// as placeholder rows with `userId` null (teacher-added, no login).
+/// Module 5 adds real learner accounts: join-code redemption
+/// (`ClassesService.redeemJoinCode`) always creates a brand-new
+/// `RosterEntry` with `userId` set to the redeeming learner's `User.id`
+/// — it never fuzzy-matches an existing placeholder row by name, so a
+/// teacher-added placeholder and a learner's self-redeemed entry can
+/// coexist for what is "the same person" in real life; reconciling that
+/// is a future-module concern. Soft-deleted (removedAt) rather than
 /// hard-deleted for an audit trail.
 model RosterEntry {
   id        String    @id @default(uuid())
   tenantId  String    @map("tenant_id")
   classId   String    @map("class_id")
+  userId    String?   @map("user_id")
   name      String
   email     String?
   addedAt   DateTime  @default(now()) @map("added_at")
@@ -241,9 +255,11 @@ model RosterEntry {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   class  Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([classId])
+  @@index([userId])
   @@map("roster_entries")
 }
 
@@ -271,9 +287,10 @@ model Activity {
   createdAt   DateTime       @default(now()) @map("created_at")
   archivedAt  DateTime?      @map("archived_at")
 
-  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  teacher   User               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  questions ActivityQuestion[]
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher     User               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  questions   ActivityQuestion[]
+  assignments Assignment[]
 
   @@index([tenantId])
   @@index([teacherId])
@@ -303,12 +320,104 @@ model ActivityQuestion {
   order           Int
   createdAt       DateTime  @default(now()) @map("created_at")
 
-  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  activity      Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  question      Question         @relation("ActivityQuestionQuestion", fields: [questionId], references: [id], onDelete: Cascade)
-  pinnedVersion QuestionVersion? @relation("ActivityQuestionPinnedVersion", fields: [pinnedVersionId], references: [id])
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  activity         Activity          @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  question         Question          @relation("ActivityQuestionQuestion", fields: [questionId], references: [id], onDelete: Cascade)
+  pinnedVersion    QuestionVersion?  @relation("ActivityQuestionPinnedVersion", fields: [pinnedVersionId], references: [id])
+  attemptResponses AttemptResponse[]
 
   @@index([activityId])
   @@index([tenantId])
   @@map("activity_questions")
+}
+
+/// Connects a PUBLISHED `Activity` to a `Class` with a due date. Creating
+/// an assignment from a non-published activity is rejected at the
+/// service layer — publish-immutability (Module 4) is what makes it
+/// safe for `Attempt` grading to trust `ActivityQuestion.pinnedVersionId`
+/// unconditionally. Only `dueAt` is patchable post-creation (scheduling
+/// metadata, not content), matching the "structural mutation vs archive"
+/// split used by `Activity`. Archived (not deleted), consistent with
+/// every other module.
+model Assignment {
+  id         String    @id @default(uuid())
+  tenantId   String    @map("tenant_id")
+  teacherId  String    @map("teacher_id")
+  classId    String    @map("class_id")
+  activityId String    @map("activity_id")
+  dueAt      DateTime  @map("due_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  archivedAt DateTime? @map("archived_at")
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher  User       @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  class    Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  activity Activity   @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  attempts Attempt[]
+
+  @@index([tenantId])
+  @@index([teacherId])
+  @@index([classId])
+  @@index([activityId])
+  @@map("assignments")
+}
+
+enum AttemptStatus {
+  in_progress
+  submitted
+}
+
+/// A learner's single pass at an `Assignment`. `(assignmentId, learnerId)`
+/// is unique — `AttemptsService.start` is idempotent and returns the
+/// existing row on a repeat call instead of creating a duplicate.
+/// Grading always resolves question content through the assignment's
+/// activity's `ActivityQuestion.pinnedVersionId`, never the question's
+/// live `currentVersionId` — see `ScoringService` for the fail-loud
+/// guard if a pinned version is ever unexpectedly null.
+model Attempt {
+  id           String        @id @default(uuid())
+  tenantId     String        @map("tenant_id")
+  assignmentId String        @map("assignment_id")
+  learnerId    String        @map("learner_id")
+  status       AttemptStatus @default(in_progress)
+  startedAt    DateTime      @default(now()) @map("started_at")
+  submittedAt  DateTime?     @map("submitted_at")
+  score        Float?
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignment Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  learner    User               @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  responses  AttemptResponse[]
+
+  @@unique([assignmentId, learnerId])
+  @@index([tenantId])
+  @@index([assignmentId])
+  @@index([learnerId])
+  @@map("attempts")
+}
+
+/// One row per `ActivityQuestion` on the parent attempt's assignment's
+/// activity, created empty at attempt-start time and filled in via
+/// autosave. `isCorrect`/`pointsAwarded` stay null until submit grades
+/// them exactly once (see the atomic claim pattern in
+/// `AttemptsService.submit`).
+model AttemptResponse {
+  id                 String   @id @default(uuid())
+  tenantId           String   @map("tenant_id")
+  attemptId          String   @map("attempt_id")
+  activityQuestionId String   @map("activity_question_id")
+  responseValue      Json     @map("response_value")
+  isCorrect          Boolean? @map("is_correct")
+  pointsAwarded      Float?   @map("points_awarded")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attempt          Attempt          @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  activityQuestion ActivityQuestion @relation(fields: [activityQuestionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, activityQuestionId])
+  @@index([tenantId])
+  @@index([attemptId])
+  @@map("attempt_responses")
 }

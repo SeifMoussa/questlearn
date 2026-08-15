@@ -200,6 +200,13 @@ export default function ActivityBuilderPage() {
               Preview
             </Button>
           </Link>
+          {!isDraft && (
+            <Link href={`/activities/${activity.id}/assign`}>
+              <Button variant="primary" size="sm">
+                Assign
+              </Button>
+            </Link>
+          )}
           {isDraft && (
             <Button variant="primary" size="sm" onClick={onPublish} disabled={busy}>
               Publish

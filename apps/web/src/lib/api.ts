@@ -327,3 +327,139 @@ export function publishActivity(accessToken: string, id: string) {
 export function archiveActivity(accessToken: string, id: string) {
   return authedRequest<ActivityDetail>(accessToken, "DELETE", `/activities/${id}`);
 }
+
+/**
+ * Join-code redemption is the one endpoint in this file that doesn't
+ * take an access token as its first argument — it's callable with no
+ * session at all (see apps/api's JoinController). When an
+ * already-authenticated learner is joining a second class, pass their
+ * token so the server can skip account creation and just link the
+ * existing account; omit it (or pass undefined) for a brand-new
+ * learner, in which case `name`/`email`/`password` are required.
+ */
+export interface JoinClassResult {
+  accessToken?: string;
+  expiresIn?: number;
+  user?: AuthUser;
+  class: { id: string; name: string };
+  rosterEntry: { id: string; name: string };
+}
+
+export function joinClass(
+  params: { joinCode: string; name?: string; email?: string; password?: string },
+  accessToken?: string,
+): Promise<JoinClassResult> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+
+  return fetch(`${getApiUrl()}/classes/join`, {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: JSON.stringify(params),
+  }).then((res) => handleResponse<JoinClassResult>(res));
+}
+
+export type AssignmentStatus = "in_progress" | "submitted";
+
+export interface AssignmentSummary {
+  id: string;
+  dueAt: string;
+  createdAt: string;
+  archivedAt: string | null;
+  classId: string;
+  activityId: string;
+  class: { id: string; name: string };
+  activity: { id: string; title: string; status: ActivityStatus };
+}
+
+export function listAssignments(accessToken: string, filter: { classId?: string; activityId?: string } = {}) {
+  const params = new URLSearchParams();
+  if (filter.classId) params.set("classId", filter.classId);
+  if (filter.activityId) params.set("activityId", filter.activityId);
+  const query = params.toString();
+  return authedRequest<AssignmentSummary[]>(accessToken, "GET", `/assignments${query ? `?${query}` : ""}`);
+}
+
+export interface LearnerAssignment {
+  id: string;
+  dueAt: string;
+  createdAt: string;
+  classId: string;
+  activityId: string;
+  class: { id: string; name: string };
+  activity: { id: string; title: string; status: ActivityStatus };
+  attempt: { id: string; status: AssignmentStatus; score: number | null } | null;
+}
+
+export function listMyAssignments(accessToken: string) {
+  return authedRequest<LearnerAssignment[]>(accessToken, "GET", "/assignments/mine");
+}
+
+export function getAssignment(accessToken: string, id: string) {
+  return authedRequest<AssignmentSummary>(accessToken, "GET", `/assignments/${id}`);
+}
+
+export function createAssignment(
+  accessToken: string,
+  params: { classId: string; activityId: string; dueAt: string },
+) {
+  return authedRequest<AssignmentSummary>(accessToken, "POST", "/assignments", params);
+}
+
+export function updateAssignment(accessToken: string, id: string, params: { dueAt: string }) {
+  return authedRequest<AssignmentSummary>(accessToken, "PATCH", `/assignments/${id}`, params);
+}
+
+/**
+ * `correctAnswer`/`isCorrect`/`pointsAwarded` are only present once
+ * `status === "submitted"` — the server strips them before then (the
+ * answer-key protection boundary), so they're typed optional here
+ * rather than always-present.
+ */
+export interface AttemptQuestion {
+  activityQuestionId: string;
+  questionId: string;
+  order: number;
+  type: QuestionType;
+  prompt: string;
+  points: number;
+  hint: string | null;
+  explanation: string | null;
+  options: QuestionOption[] | null;
+  responseValue: unknown;
+  correctAnswer?: CorrectAnswer;
+  isCorrect?: boolean | null;
+  pointsAwarded?: number | null;
+}
+
+export interface AttemptDetail {
+  id: string;
+  assignmentId: string;
+  status: AssignmentStatus;
+  startedAt: string;
+  submittedAt: string | null;
+  score: number | null;
+  questions: AttemptQuestion[];
+}
+
+export function startAttempt(accessToken: string, assignmentId: string) {
+  return authedRequest<AttemptDetail>(accessToken, "POST", `/assignments/${assignmentId}/attempts/start`);
+}
+
+export function getAttempt(accessToken: string, id: string) {
+  return authedRequest<AttemptDetail>(accessToken, "GET", `/attempts/${id}`);
+}
+
+export function autosaveResponse(accessToken: string, attemptId: string, activityQuestionId: string, responseValue: unknown) {
+  return authedRequest<{ activityQuestionId: string; responseValue: unknown }>(
+    accessToken,
+    "PATCH",
+    `/attempts/${attemptId}/responses/${activityQuestionId}`,
+    { responseValue },
+  );
+}
+
+export function submitAttempt(accessToken: string, id: string) {
+  return authedRequest<AttemptDetail>(accessToken, "POST", `/attempts/${id}/submit`);
+}

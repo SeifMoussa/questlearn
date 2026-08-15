@@ -24,7 +24,12 @@ export type SecurityEvent =
   | "activity_question_removed"
   | "activity_reordered"
   | "activity_published"
-  | "activity_archived";
+  | "activity_archived"
+  | "learner_joined_class"
+  | "assignment_created"
+  | "assignment_updated"
+  | "attempt_started"
+  | "attempt_submitted";
 
 /**
  * Structured, append-only logging for auth events. Deliberately never

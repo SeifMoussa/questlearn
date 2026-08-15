@@ -1,11 +1,22 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import * as argon2 from "argon2";
 import { PrismaService } from "../prisma/prisma.service";
 import { SecurityLogger } from "../auth/security-logger.service";
-import { generateJoinCode, joinCodeExpiry } from "./join-code.util";
+import { AuthService, ARGON2_OPTIONS, IssuedSession } from "../auth/auth.service";
+import { AccessTokenPayload } from "../auth/guards/jwt-auth.guard";
+import { generateJoinCode, joinCodeExpiry, isJoinCodeExpired } from "./join-code.util";
 import { CreateClassDto } from "./dto/create-class.dto";
 import { UpdateClassDto } from "./dto/update-class.dto";
 import { AddRosterEntryDto } from "./dto/add-roster-entry.dto";
+import { JoinClassDto } from "./dto/join-class.dto";
+
+export interface JoinResult {
+  kind: "session" | "enrolled";
+  class: { id: string; name: string };
+  rosterEntry: { id: string; name: string };
+  session?: IssuedSession;
+}
 
 // A crypto-random 8-character code drawn from a 32-character alphabet
 // has ~2^40 possibilities; a collision against existing rows is
@@ -23,7 +34,127 @@ export class ClassesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly securityLogger: SecurityLogger,
+    private readonly authService: AuthService,
   ) {}
+
+  /**
+   * Redeems a join code. Two paths, per the Module 5 design decision:
+   *
+   *  - No valid learner access token presented: creates a brand-new
+   *    `User{role: learner}` + `RosterEntry`, then immediately issues a
+   *    session (same shape `/auth/login` returns) so redemption is one
+   *    step, not register-then-login. Learners skip the email
+   *    verification gate entirely — the join code itself, which is
+   *    random, expiring, and rate-limited, is the trust proxy.
+   *  - A valid learner access token IS presented: skips account
+   *    creation, just links the existing learner to this class via a
+   *    new `RosterEntry` ("join a second class"). A non-learner
+   *    (teacher) token is treated the same as no token, since a
+   *    teacher account joining as a learner doesn't make sense.
+   *
+   * Redeeming a code for a class the caller is already actively
+   * enrolled in is a no-op that returns the existing enrollment, not
+   * an error and not a duplicate row.
+   */
+  async redeemJoinCode(dto: JoinClassDto, existingLearner?: AccessTokenPayload): Promise<JoinResult> {
+    const code = dto.joinCode.trim().toUpperCase();
+    const cls = await this.prisma.class.findUnique({ where: { joinCode: code } });
+    const now = new Date();
+
+    // Generic "invalid or expired" for every failure mode (unknown
+    // code, archived class, expired code) — mirrors the auth module's
+    // "don't leak which specific thing was wrong" posture.
+    if (!cls || cls.archivedAt || isJoinCodeExpired(cls.joinCodeExpiresAt, now)) {
+      throw new NotFoundException("Invalid or expired join code.");
+    }
+
+    if (existingLearner?.role === "learner") {
+      const existingEntry = await this.prisma.rosterEntry.findFirst({
+        where: { classId: cls.id, userId: existingLearner.sub, removedAt: null },
+      });
+      if (existingEntry) {
+        return {
+          kind: "enrolled",
+          class: { id: cls.id, name: cls.name },
+          rosterEntry: { id: existingEntry.id, name: existingEntry.name },
+        };
+      }
+
+      const learner = await this.prisma.user.findUniqueOrThrow({ where: { id: existingLearner.sub } });
+      const entry = await this.prisma.rosterEntry.create({
+        data: {
+          tenantId: cls.tenantId,
+          classId: cls.id,
+          userId: learner.id,
+          name: learner.name,
+          email: learner.email,
+        },
+      });
+
+      this.securityLogger.log("learner_joined_class", {
+        classId: cls.id,
+        tenantId: cls.tenantId,
+        userId: learner.id,
+        rosterEntryId: entry.id,
+      });
+
+      return { kind: "enrolled", class: { id: cls.id, name: cls.name }, rosterEntry: { id: entry.id, name: entry.name } };
+    }
+
+    // Anonymous path: register a brand-new learner account.
+    if (!dto.name || !dto.email || !dto.password) {
+      throw new BadRequestException("Name, email, and password are required to join a class.");
+    }
+
+    const email = dto.email.trim().toLowerCase();
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new ConflictException(
+        "An account with this email already exists. Log in, then use this join code again.",
+      );
+    }
+
+    const passwordHash = await argon2.hash(dto.password, ARGON2_OPTIONS);
+
+    const { user, entry } = await this.prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          tenantId: cls.tenantId,
+          email,
+          name: dto.name!.trim(),
+          passwordHash,
+          role: "learner",
+          emailVerifiedAt: new Date(),
+        },
+      });
+      const newEntry = await tx.rosterEntry.create({
+        data: {
+          tenantId: cls.tenantId,
+          classId: cls.id,
+          userId: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+        },
+      });
+      return { user: newUser, entry: newEntry };
+    });
+
+    this.securityLogger.log("learner_joined_class", {
+      classId: cls.id,
+      tenantId: cls.tenantId,
+      userId: user.id,
+      rosterEntryId: entry.id,
+    });
+
+    const session = await this.authService.issueSessionForUser(user.id, user.tenantId);
+
+    return {
+      kind: "session",
+      class: { id: cls.id, name: cls.name },
+      rosterEntry: { id: entry.id, name: entry.name },
+      session,
+    };
+  }
 
   private async createUniqueJoinCode(): Promise<string> {
     for (let attempt = 0; attempt < JOIN_CODE_MAX_ATTEMPTS; attempt++) {

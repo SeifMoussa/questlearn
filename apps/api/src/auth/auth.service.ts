@@ -22,8 +22,11 @@ export const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export const VERIFICATION_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 export const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-// OWASP-recommended minimum argon2id parameters.
-const ARGON2_OPTIONS: argon2.HashOptions = {
+// OWASP-recommended minimum argon2id parameters. Exported so other
+// modules that create real User rows outside the register flow (e.g.
+// join-code redemption in Module 5) hash with the exact same
+// parameters rather than drifting from this baseline.
+export const ARGON2_OPTIONS: argon2.HashOptions = {
   type: argon2.argon2id,
   memoryCost: 19456, // 19 MiB
   timeCost: 2,
@@ -196,6 +199,17 @@ export class AuthService {
         tenantId: user.tenantId,
       },
     };
+  }
+
+  /**
+   * Public wrapper around the private session-issuance logic, used by
+   * join-code redemption (Module 5) to hand a brand-new learner account
+   * a real session in the same response shape `/auth/login` returns,
+   * without duplicating token/cookie logic in the classes module.
+   */
+  async issueSessionForUser(userId: string, tenantId: string): Promise<IssuedSession> {
+    const session = await this.issueSession(userId, tenantId);
+    return session;
   }
 
   private async issueSession(
