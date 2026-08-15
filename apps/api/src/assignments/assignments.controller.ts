@@ -32,6 +32,12 @@ export class AssignmentsController {
     return this.assignmentsService.findAllForTeacher(contextOf(user), { classId, activityId });
   }
 
+  @Get("mine")
+  @ApiOperation({ summary: "List the current learner's assignments across every class they're enrolled in" })
+  findMine(@CurrentUser() user: AccessTokenPayload) {
+    return this.assignmentsService.findAllForLearner(contextOf(user));
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Get an assignment's detail" })
   findOne(@CurrentUser() user: AccessTokenPayload, @Param("id") id: string) {

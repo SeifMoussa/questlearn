@@ -9,6 +9,8 @@ export interface TeacherContext {
   tenantId: string;
 }
 
+export type CallerContext = TeacherContext;
+
 @Injectable()
 export class AssignmentsService {
   constructor(
@@ -76,6 +78,47 @@ export class AssignmentsService {
       orderBy: { createdAt: "desc" },
       include: { class: true, activity: true },
     });
+  }
+
+  /**
+   * The learner-facing counterpart to `findAllForTeacher`: every
+   * assignment belonging to a class the caller has an active
+   * (non-removed) `RosterEntry` in, across every class they're
+   * enrolled in — not scoped to a single class the way the teacher
+   * list can be. Each row carries the caller's own attempt (if any),
+   * so the dashboard can show not-started/in-progress/submitted
+   * without a second round trip per assignment.
+   */
+  async findAllForLearner(ctx: CallerContext) {
+    const rosterEntries = await this.prisma.rosterEntry.findMany({
+      where: { userId: ctx.userId, tenantId: ctx.tenantId, removedAt: null },
+      select: { classId: true },
+    });
+    const classIds = rosterEntries.map((r) => r.classId);
+    if (classIds.length === 0) return [];
+
+    const assignments = await this.prisma.assignment.findMany({
+      where: { tenantId: ctx.tenantId, classId: { in: classIds }, archivedAt: null },
+      orderBy: { dueAt: "asc" },
+      include: {
+        class: true,
+        activity: true,
+        attempts: { where: { learnerId: ctx.userId } },
+      },
+    });
+
+    return assignments.map((a) => ({
+      id: a.id,
+      dueAt: a.dueAt,
+      createdAt: a.createdAt,
+      classId: a.classId,
+      activityId: a.activityId,
+      class: { id: a.class.id, name: a.class.name },
+      activity: { id: a.activity.id, title: a.activity.title, status: a.activity.status },
+      attempt: a.attempts[0]
+        ? { id: a.attempts[0].id, status: a.attempts[0].status, score: a.attempts[0].score }
+        : null,
+    }));
   }
 
   private async findOwnedOrThrow(ctx: TeacherContext, assignmentId: string) {

@@ -19,6 +19,16 @@ interface AuthContextValue {
   accessToken: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /**
+   * Adopts an already-issued session (accessToken + user) without
+   * making a fresh /auth/login call. Used by /join: join-code
+   * redemption (see apps/api's JoinController) already returns a real
+   * session in the same shape /auth/login does and sets the same
+   * refresh/csrf cookies, so re-submitting the password through
+   * `login()` would be a redundant round trip against the same
+   * rate-limited window.
+   */
+  applySession: (accessToken: string, user: AuthUser) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -64,6 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("authenticated");
   }, []);
 
+  const applySession = useCallback((token: string, sessionUser: AuthUser) => {
+    setAccessToken(token);
+    setUser(sessionUser);
+    setStatus("authenticated");
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await api.logout();
@@ -75,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ status, user, accessToken, login, logout }}>
+    <AuthContext.Provider value={{ status, user, accessToken, login, logout, applySession }}>
       {children}
     </AuthContext.Provider>
   );
