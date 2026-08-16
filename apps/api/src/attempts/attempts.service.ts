@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { SecurityLogger } from "../auth/security-logger.service";
+import { MasteryService } from "../mastery/mastery.service";
 import { scoreQuestion, overallScore } from "./scoring";
 import { AutosaveResponseDto } from "./dto/autosave-response.dto";
 
@@ -19,6 +20,7 @@ export class AttemptsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly securityLogger: SecurityLogger,
+    private readonly masteryService: MasteryService,
   ) {}
 
   /**
@@ -74,6 +76,7 @@ export class AttemptsService {
         explanation: version.explanation,
         options: version.options,
         responseValue: response?.responseValue ?? null,
+        hintViewed: response?.hintViewed ?? false,
       };
 
       if (!isSubmitted) {
@@ -203,13 +206,34 @@ export class AttemptsService {
       throw new NotFoundException("Attempt response not found.");
     }
 
-    const value = dto.responseValue === undefined ? Prisma.JsonNull : (dto.responseValue as Prisma.InputJsonValue);
+    const data: Prisma.AttemptResponseUpdateInput = {};
+
+    // Only touch responseValue when the key was actually present in
+    // the request body — this same endpoint doubles as the
+    // hint-reveal call (`{ hintViewed: true }` with no responseValue
+    // at all), which must never clobber the learner's already-saved
+    // answer back to null.
+    if ("responseValue" in dto) {
+      data.responseValue = dto.responseValue === undefined ? Prisma.JsonNull : (dto.responseValue as Prisma.InputJsonValue);
+    }
+
+    // Once true, never reset back to false — only ever write true, and
+    // only when it's not already true, so a hint viewed earlier in the
+    // attempt stays viewed regardless of what later autosave calls send.
+    if (dto.hintViewed === true && !response.hintViewed) {
+      data.hintViewed = true;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return { activityQuestionId: response.activityQuestionId, responseValue: response.responseValue, hintViewed: response.hintViewed };
+    }
+
     const updated = await this.prisma.attemptResponse.update({
       where: { id: response.id },
-      data: { responseValue: value },
+      data,
     });
 
-    return { activityQuestionId: updated.activityQuestionId, responseValue: updated.responseValue };
+    return { activityQuestionId: updated.activityQuestionId, responseValue: updated.responseValue, hintViewed: updated.hintViewed };
   }
 
   /**
@@ -265,6 +289,13 @@ export class AttemptsService {
       const responsesByAQ = new Map(responses.map((r) => [r.activityQuestionId, r]));
 
       const graded: { activityQuestionId: string; pointsAwarded: number; points: number }[] = [];
+      const gradedForEvidence: {
+        attemptResponseId: string;
+        questionId: string;
+        pointsAwarded: number;
+        points: number;
+        hintViewed: boolean;
+      }[] = [];
 
       for (const aq of questions) {
         if (!aq.pinnedVersionId || !aq.pinnedVersion) {
@@ -281,9 +312,16 @@ export class AttemptsService {
         );
 
         if (response) {
-          await tx.attemptResponse.update({
+          const updatedResponse = await tx.attemptResponse.update({
             where: { id: response.id },
             data: { isCorrect: result.isCorrect, pointsAwarded: result.pointsAwarded },
+          });
+          gradedForEvidence.push({
+            attemptResponseId: updatedResponse.id,
+            questionId: aq.questionId,
+            pointsAwarded: result.pointsAwarded,
+            points: version.points,
+            hintViewed: updatedResponse.hintViewed,
           });
         }
 
@@ -292,6 +330,17 @@ export class AttemptsService {
 
       const score = overallScore(graded);
       await tx.attempt.update({ where: { id: attempt.id }, data: { score } });
+
+      // Mastery evidence recording happens INSIDE this same grading
+      // transaction, right after scoring, per the submission pipeline
+      // (Master Spec §10): "responses graded -> score computed ->
+      // mastery evidence recorded" — never a second transaction, and
+      // reached only by the winning claim above.
+      await this.masteryService.recordEvidenceForAttempt(
+        tx,
+        { tenantId: ctx.tenantId, learnerId: ctx.userId },
+        gradedForEvidence,
+      );
 
       return true;
     });
