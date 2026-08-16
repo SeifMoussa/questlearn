@@ -43,6 +43,9 @@ model Tenant {
   assignments          Assignment[]
   attempts             Attempt[]
   attemptResponses     AttemptResponse[]
+  concepts             Concept[]
+  questionConcepts     QuestionConcept[]
+  masteryEvidence      MasteryEvidence[]
 
   @@map("tenants")
 }
@@ -67,6 +70,8 @@ model User {
   rosterEntries        RosterEntry[]
   assignments          Assignment[]
   attempts             Attempt[]
+  concepts             Concept[]
+  masteryEvidence      MasteryEvidence[] @relation("MasteryEvidenceLearner")
 
   // Email uniqueness is scoped globally (login is by email alone, no
   // tenant selector in Module 1), not per-tenant.
@@ -183,6 +188,7 @@ model Question {
   versions QuestionVersion[] @relation("QuestionVersions")
   currentVersion QuestionVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id])
   activityQuestions ActivityQuestion[] @relation("ActivityQuestionQuestion")
+  concepts QuestionConcept[]
 
   @@index([tenantId])
   @@index([teacherId])
@@ -411,14 +417,106 @@ model AttemptResponse {
   responseValue      Json     @map("response_value")
   isCorrect          Boolean? @map("is_correct")
   pointsAwarded      Float?   @map("points_awarded")
+  // Set true (via the attempts autosave/hint endpoints) the first time
+  // a learner expands this question's hint on an in-progress attempt.
+  // Never reset back to false. Frozen onto each recorded
+  // MasteryEvidence row at grading time — see MasteryEvidence.
+  hintViewed         Boolean  @default(false) @map("hint_viewed")
   createdAt          DateTime @default(now()) @map("created_at")
 
-  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  attempt          Attempt          @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  activityQuestion ActivityQuestion @relation(fields: [activityQuestionId], references: [id], onDelete: Cascade)
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attempt          Attempt           @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  activityQuestion ActivityQuestion  @relation(fields: [activityQuestionId], references: [id], onDelete: Cascade)
+  masteryEvidence  MasteryEvidence[]
 
   @@unique([attemptId, activityQuestionId])
   @@index([tenantId])
   @@index([attemptId])
   @@map("attempt_responses")
+}
+
+/// A teacher-owned mastery tag ("concept"). Concepts attach to
+/// `Question`, not `QuestionVersion` — editing a question's wording
+/// via the always-versioning flow (Module 3) doesn't require
+/// re-tagging, and `PATCH /questions/:id/concepts` never bumps the
+/// question's version. Concepts are teacher-scoped, not shared or
+/// standardized across teachers (documented limitation). Archived
+/// (not deleted), matching every other module.
+model Concept {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  teacherId   String    @map("teacher_id")
+  name        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  archivedAt  DateTime? @map("archived_at")
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher   User              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  questions QuestionConcept[]
+  evidence  MasteryEvidence[]
+
+  @@index([tenantId])
+  @@index([teacherId])
+  @@map("concepts")
+}
+
+/// Many-to-many join between `Question` and `Concept`. Replaced
+/// wholesale by `PATCH /questions/:id/concepts` (full-set replacement,
+/// not incremental add/remove) — see `QuestionsService`.
+model QuestionConcept {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  questionId String   @map("question_id")
+  conceptId  String   @map("concept_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  concept  Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, conceptId])
+  @@index([tenantId])
+  @@index([questionId])
+  @@index([conceptId])
+  @@map("question_concepts")
+}
+
+/// Append-only mastery evidence, written inside the SAME transaction
+/// as attempt grading (`AttemptsService.submit`) — never a second
+/// transaction, never backfilled. One row per (gradedResponse, tagged
+/// concept). `responseScore` freezes
+/// `(pointsAwarded / points) * (hintViewed ? 0.85 : 1.0)` at recording
+/// time; `hintViewed` is frozen alongside it for auditability even
+/// though it's derivable from the parent response. There is
+/// deliberately no cached mastery table anywhere — `MasteryService`
+/// aggregates these rows live, applying a recency half-life evaluated
+/// against the actual current timestamp on every read, which is what
+/// makes "practiced 3 weeks ago" score lower today than it did the day
+/// it was recorded without ever re-writing a stored value.
+/// `@@unique([attemptResponseId, conceptId])` makes duplicate evidence
+/// for the same graded response structurally impossible, matching the
+/// atomic-claim idempotency pattern `AttemptsService.submit` already
+/// established: only the winning submit call ever reaches the code
+/// that inserts these rows.
+model MasteryEvidence {
+  id                String   @id @default(uuid())
+  tenantId          String   @map("tenant_id")
+  learnerId         String   @map("learner_id")
+  conceptId         String   @map("concept_id")
+  attemptResponseId String   @map("attempt_response_id")
+  responseScore     Float    @map("response_score")
+  hintViewed        Boolean  @map("hint_viewed")
+  recordedAt        DateTime @default(now()) @map("recorded_at")
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  learner         User            @relation("MasteryEvidenceLearner", fields: [learnerId], references: [id], onDelete: Cascade)
+  concept         Concept         @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  attemptResponse AttemptResponse @relation(fields: [attemptResponseId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptResponseId, conceptId])
+  @@index([tenantId])
+  @@index([learnerId])
+  @@index([conceptId])
+  @@map("mastery_evidence")
 }
