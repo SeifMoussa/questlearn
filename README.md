@@ -680,22 +680,175 @@ show populated content without a manual redemption step.
   learner-enrollment path introduced this module; teacher-added
   placeholder rows from Module 2 still exist side by side.
 
+## Module 6 — Mastery
+
+Every graded attempt now also records per-concept mastery evidence,
+computed live at read time rather than cached — the same "grade →
+mastery" link the master spec's problem statement is built around,
+kept structurally separate from grades and XP everywhere: its own
+table, its own endpoints, its own UI, never blended into an attempt's
+score.
+
+**What it adds:**
+
+- `Concept`/`QuestionConcept` schema plus a tenant+owner-scoped
+  `concepts` module: `POST/GET/PATCH/DELETE /concepts`. `PATCH
+  /questions/:id/concepts` (in the `questions` module, alongside the
+  existing question endpoints) replaces a question's full tag set in
+  one call.
+- `MasteryEvidence` — append-only, one row per (graded response,
+  tagged concept), written inside `AttemptsService.submit()`'s
+  existing grading transaction, immediately after scoring, per the
+  master spec's submission-pipeline ordering.
+- `GET /mastery/me` (learner) and `GET /classes/:id/mastery` (teacher,
+  tenant+owner scoped via the class) — both live-computed, no stored
+  mastery value read or written anywhere.
+- Click-to-reveal hints on the activity player, wired to a new
+  `AttemptResponse.hintViewed` flag (set via the existing autosave
+  endpoint, extended with an optional `hintViewed` field; never reset
+  back to false once true).
+- Frontend: a concept-tagging section on the question detail page
+  (mirrors the short_text accepted-answers `Tag` pattern), a plain
+  `/concepts` CRUD page, a learner `/mastery` view
+  (`ProgressBar` + state badge per concept), and a teacher
+  `/classes/:id/mastery` view (`StatCard` for class-wide per-concept
+  aggregates, `AvatarMetricRow` for the per-learner breakdown).
+
+**Architecture decisions:**
+
+- **Concepts tag the `Question`, not the `QuestionVersion`.** Editing
+  a question's wording via the always-versioning flow (Module 3) never
+  requires re-tagging, and `PATCH /questions/:id/concepts` has zero
+  interaction with the versioning system — no new version, no version
+  bump, nothing recorded on `QuestionVersion` at all. The tradeoff:
+  mastery evidence can't distinguish "this concept as asked in wording
+  A" from "as asked in wording B" — a single, coarser tag per question
+  regardless of how its content changes over time.
+- **Live-computed mastery, no cache, on purpose — not just because
+  it's simpler.** A cached `ConceptMastery` table would only be as
+  fresh as its last recompute, which means either a background job
+  (explicitly out of scope for this module — no BullMQ, no queue) or a
+  score that silently drifts stale between attempts as the recency
+  term decays. Computing `recency_weight` against the actual current
+  timestamp on every read is what makes "practiced three weeks ago"
+  score lower today than it did the day it was recorded, without ever
+  re-writing a row — genuinely more correct than a cache, not merely
+  less code.
+- **The formula** (Master Spec §6.7, assumption A5), with named,
+  exported constants rather than inline magic numbers
+  (`apps/api/src/mastery/mastery-formula.ts`):
+
+  ```
+  effective_response_score = (pointsAwarded / points) × (hintViewed ? 0.85 : 1.0)
+  recency_weight(evidence) = 0.5 ^ (days_since_recorded / 14)
+  mastery(concept) = Σ(effective_response_score × recency_weight) / Σ(recency_weight)
+  ```
+
+  `HINT_PENALTY_MULTIPLIER = 0.85` and `RECENCY_HALF_LIFE_DAYS = 14`
+  are the two tunable constants. `responseScore` is frozen onto each
+  `MasteryEvidence` row at recording time (the hint-adjusted fraction,
+  not the raw fraction) — only the recency term is ever recomputed
+  live.
+- **State cutoffs, no minimum-evidence gating.** Beginning 0–0.39,
+  Developing 0.40–0.69, Proficient 0.70–0.89, Mastered 0.90–1.00 — a
+  single evidence row fully determines state. A concept with zero
+  evidence for a learner has no mastery row or state at all
+  (`"not_started"`), surfaced distinctly from `"beginning"` in both the
+  API and UI, never defaulted to a 0 score.
+- **Idempotency reuses Module 5's atomic-claim pattern, doesn't
+  reimplement it.** `recordEvidenceForAttempt` runs inside the same
+  transaction `submit()`'s `updateMany`-conditioned claim already
+  guards — only the winning caller ever reaches it — and
+  `@@unique([attemptResponseId, conceptId])` makes duplicate evidence
+  for the same graded response structurally impossible even if that
+  invariant were ever violated.
+- **Hint-usage tracking reuses, not duplicates, the autosave
+  endpoint's guards.** The same ownership/locked-attempt checks that
+  already gate `PATCH /attempts/:id/responses/:activityQuestionId`
+  cover the new `hintViewed` field for free — no second endpoint, no
+  parallel authorization logic to keep in sync.
+- **Structured security logging** extends `SecurityLogger` with
+  `concept_created`, `concept_archived`, and
+  `question_concepts_updated`.
+
+**Test coverage:**
+
+- Jest unit tests for the formula in isolation
+  (`apps/api/test/mastery/mastery-formula.spec.ts`): hand-computed
+  cases for the hint penalty, recency decay at zero/one/two half-lives,
+  multi-point weighted averages, and all six state-cutoff boundaries
+  (0.39/0.40, 0.69/0.70, 0.89/0.90 on both sides).
+- Jest integration tests against real Postgres
+  (`apps/api/test/mastery/mastery.integration.spec.ts`,
+  `apps/api/test/concepts/tenant-isolation.spec.ts`): the full
+  tag → grade → evidence → `GET /mastery/me` flow; a two-concept-tagged
+  question producing evidence for both; hint-viewed tracking guards
+  (per-response isolation, rejected on someone else's or a locked
+  attempt); a recency-decay test against directly-inserted evidence
+  with controlled `recordedAt` timestamps (a real submission can't time
+  travel); tenant isolation on `/concepts`, question tagging, and
+  `/classes/:id/mastery`. **THE IDEMPOTENCY PROOF**
+  (`mastery.integration.spec.ts`) asserts a concurrent duplicate submit
+  creates evidence exactly once per concept, both under a `Promise.all`
+  race and a subsequent sequential duplicate.
+- **Playwright** (`apps/web/e2e/mastery.spec.ts`): the demo teacher
+  creates a concept and tags it onto a seeded question through the real
+  UI → assigns the seeded, already-tagged published activity → a
+  learner joins, completes it while revealing a hint → the learner's
+  `/mastery` view and the teacher's `/classes/:id/mastery` view both
+  reflect the same evidence. Produced the screenshots below.
+
+**Demo data:**
+
+`pnpm db:seed` tags the 5 existing seed questions with 3 fictional
+concepts (Solar System Basics, Number Theory, States of Matter &
+Chemistry) and routes the seeded demo attempt through the real
+`MasteryService.recordEvidenceForAttempt` path — not a hand-rolled
+duplicate — so the demo has genuine mastery evidence. Idempotent on
+reseed like every other seed step.
+
+**Screenshots** (`docs/screenshots/06-mastery/`):
+
+- [`learner-concept-view.png`](./docs/screenshots/06-mastery/learner-concept-view.png)
+- [`teacher-class-mastery-view.png`](./docs/screenshots/06-mastery/teacher-class-mastery-view.png)
+
+**Known limitations:**
+
+- **No minimum-evidence-count gating** — see the state-cutoffs
+  decision above; a learner can reach "Mastered" off a single lucky
+  response, by design (A5's simplified v1 formula).
+- **No per-concept difficulty weighting.** Every response contributes
+  equally regardless of the underlying question's difficulty or point
+  value beyond the fraction it produced — full independence/repetition
+  weighting is a documented v2 refinement per assumption A5.
+- **Concepts are teacher-scoped, not shared or standardized across
+  teachers.** Two teachers each create their own "Fractions" concept
+  independently; there's no shared taxonomy or cross-tenant concept
+  library.
+- **No mastery-driven UI elsewhere yet** — quest gating on mastery
+  thresholds (Master Spec §6.9) is Module 8's job; this module only
+  builds the evidence pipeline and the two read surfaces.
+
 ## Testing
 
 - **Jest** — unit tests for both apps (health service, auth service,
   classes service, questions service, activities service, assignments
-  scoring, attempt submit-claim logic, question DTO validation,
-  join-code generation, a render smoke test for the status page) plus
-  real-Postgres integration tests for the auth session lifecycle,
-  classes lifecycle, questions lifecycle and versioning, activities
-  lifecycle and publish-immutability, the full assignments/attempts
-  lifecycle (including the idempotency and frozen-content proofs),
-  tenant isolation (auth, classes, questions, activities, and
-  assignments), and rate limiting (auth and join-code redemption).
+  scoring, attempt submit-claim logic, the mastery formula, question
+  DTO validation, join-code generation, a render smoke test for the
+  status page) plus real-Postgres integration tests for the auth
+  session lifecycle, classes lifecycle, questions lifecycle and
+  versioning, activities lifecycle and publish-immutability, the full
+  assignments/attempts lifecycle (including the idempotency and
+  frozen-content proofs), the mastery evidence/query lifecycle
+  (including its own idempotency proof and a recency-decay test),
+  tenant isolation (auth, classes, questions, activities, assignments,
+  concepts, and mastery), and rate limiting (auth and join-code
+  redemption).
 - **Playwright** (`apps/web/e2e/`) drives the real auth, class
-  management, question bank, activity-builder, and
-  assignment/attempt/result flows through a real browser against the
-  real running app — see Module 1 through Module 5 above.
+  management, question bank, activity-builder,
+  assignment/attempt/result, and concept-tagging/mastery flows through
+  a real browser against the real running app — see Module 1 through
+  Module 6 above.
 
 ## Known limitations
 
@@ -739,9 +892,9 @@ show populated content without a manual redemption step.
   /questions/:id` itself is still unrestricted to the owning teacher,
   which remains correct — it's a teacher-only, tenant-scoped endpoint,
   not one a learner session can reach.
-- **No concept tagging.** No `Concept` entity, no tag fields on
-  `Question` or `QuestionVersion` — that belongs to the mastery
-  module.
+- ~~No concept tagging.~~ Resolved in Module 6: concepts attach to the
+  `Question` (not `QuestionVersion`) via `PATCH
+  /questions/:id/concepts`.
 - **Only the 5 locked question types** are supported: single choice,
   multiple choice, true/false, short text, numeric. No matching,
   ordering, or drag-and-drop types.
