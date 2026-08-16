@@ -1,8 +1,9 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import * as argon2 from "argon2";
 import { generateJoinCode, joinCodeExpiry } from "../src/classes/join-code.util";
 import { scoreQuestion, overallScore } from "../src/attempts/scoring";
+import { MasteryService } from "../src/mastery/mastery.service";
 
 /**
  * Seeds one fictional demo teacher account so the login screen and
@@ -65,6 +66,7 @@ async function main(): Promise<void> {
 
     await seedDemoClasses(prisma, user.tenantId, user.id);
     await seedDemoQuestions(prisma, user.tenantId, user.id);
+    await seedDemoConcepts(prisma, user.tenantId, user.id);
     await seedDemoActivities(prisma, user.tenantId, user.id);
     const learner = await seedDemoLearner(prisma, user.tenantId);
     if (learner) {
@@ -233,6 +235,59 @@ async function createSeedQuestion(
     where: { id: created.id },
     data: { currentVersionId: version.id },
   });
+}
+
+/**
+ * Fictional concepts matching the 5 seed questions' subject matter,
+ * each tagged onto the question(s) it applies to via a real
+ * `QuestionConcept` row (not a hand-rolled shortcut — the same shape
+ * `PATCH /questions/:id/concepts` produces). Idempotent the same way
+ * as the other seed helpers: skips entirely if the teacher already
+ * has any concept.
+ */
+async function seedDemoConcepts(prisma: PrismaClient, tenantId: string, teacherId: string): Promise<void> {
+  const existingConcepts = await prisma.concept.count({ where: { tenantId, teacherId } });
+  if (existingConcepts > 0) {
+    console.log("Demo concepts already exist; skipping.");
+    return;
+  }
+
+  const questions = await prisma.question.findMany({
+    where: { tenantId, teacherId, archivedAt: null },
+    orderBy: { createdAt: "asc" },
+    include: { currentVersion: true },
+  });
+  if (questions.length < 5) {
+    console.log("Fewer than 5 demo questions found; skipping demo concepts.");
+    return;
+  }
+
+  const [planetQuestion, primeQuestion, earthSunQuestion, waterQuestion, boilingQuestion] = questions;
+
+  const solarSystem = await prisma.concept.create({
+    data: { tenantId, teacherId, name: "Solar System Basics", description: "Planets and their place in the solar system." },
+  });
+  const numberTheory = await prisma.concept.create({
+    data: { tenantId, teacherId, name: "Number Theory", description: "Prime numbers and basic number classification." },
+  });
+  const matterAndChemistry = await prisma.concept.create({
+    data: { tenantId, teacherId, name: "States of Matter & Chemistry", description: "Chemical formulas and phase-change properties of water." },
+  });
+
+  await prisma.questionConcept.createMany({
+    data: [
+      { tenantId, questionId: planetQuestion.id, conceptId: solarSystem.id },
+      { tenantId, questionId: earthSunQuestion.id, conceptId: solarSystem.id },
+      { tenantId, questionId: primeQuestion.id, conceptId: numberTheory.id },
+      { tenantId, questionId: waterQuestion.id, conceptId: matterAndChemistry.id },
+      { tenantId, questionId: boilingQuestion.id, conceptId: matterAndChemistry.id },
+    ],
+  });
+
+  console.log("Seeded demo concepts:");
+  console.log(`  ${solarSystem.name} (2 questions tagged)`);
+  console.log(`  ${numberTheory.name} (1 question tagged)`);
+  console.log(`  ${matterAndChemistry.name} (2 questions tagged)`);
 }
 
 /**
@@ -453,6 +508,13 @@ async function seedDemoAssignmentAndAttempt(
   });
 
   const graded: { pointsAwarded: number; points: number }[] = [];
+  const gradedForEvidence: {
+    attemptResponseId: string;
+    questionId: string;
+    pointsAwarded: number;
+    points: number;
+    hintViewed: boolean;
+  }[] = [];
 
   for (const [index, aq] of publishedActivity.questions.entries()) {
     const version = aq.pinnedVersion;
@@ -460,14 +522,17 @@ async function seedDemoAssignmentAndAttempt(
 
     // Answer every question correctly except the second, so the
     // seeded score is a realistic partial result rather than a flat
-    // 100% — more useful for a screenshot.
+    // 100% — more useful for a screenshot. The third question is
+    // marked hint-viewed so the seeded mastery evidence exercises the
+    // 15% hint penalty too, not just the plain fraction.
     const response = index === 1 ? wrongResponseFor(version) : correctResponseFor(version);
+    const hintViewed = index === 2;
     const result = scoreQuestion(
       { type: version.type, points: version.points, options: version.options, correctAnswer: version.correctAnswer },
       response,
     );
 
-    await prisma.attemptResponse.create({
+    const created = await prisma.attemptResponse.create({
       data: {
         tenantId,
         attemptId: attempt.id,
@@ -475,18 +540,40 @@ async function seedDemoAssignmentAndAttempt(
         responseValue: response as never,
         isCorrect: result.isCorrect,
         pointsAwarded: result.pointsAwarded,
+        hintViewed,
       },
     });
 
     graded.push({ pointsAwarded: result.pointsAwarded, points: version.points });
+    gradedForEvidence.push({
+      attemptResponseId: created.id,
+      questionId: aq.questionId,
+      pointsAwarded: result.pointsAwarded,
+      points: version.points,
+      hintViewed,
+    });
   }
 
   const score = overallScore(graded);
   await prisma.attempt.update({ where: { id: attempt.id }, data: { score } });
 
+  // Routes the seeded attempt through the REAL evidence-recording
+  // logic (the same `MasteryService.recordEvidenceForAttempt` that
+  // `AttemptsService.submit()` calls inside its grading transaction),
+  // not a hand-rolled duplicate — so the demo has genuine mastery
+  // data. `recordEvidenceForAttempt` only touches its `tx` argument,
+  // so the plain (non-transactional) PrismaClient works fine here.
+  const masteryService = new MasteryService(prisma as never);
+  await masteryService.recordEvidenceForAttempt(
+    prisma as unknown as Prisma.TransactionClient,
+    { tenantId, learnerId: learner.id },
+    gradedForEvidence,
+  );
+
   console.log(
     `Seeded demo assignment (${publishedActivity.title} -> ${homeroom.name}) and one submitted attempt (score ${Math.round(score * 100)}%).`,
   );
+  console.log("Recorded mastery evidence for the submitted attempt via the real grading-time recording path.");
 }
 
 main().catch((error) => {
