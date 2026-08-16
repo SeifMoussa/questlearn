@@ -5,9 +5,19 @@ const SCREENSHOT_DIR = path.resolve(__dirname, "../../../docs/screenshots/06-mas
 
 const DEMO_EMAIL = "demo.teacher@questlearn.dev";
 const DEMO_PASSWORD = "DemoTeacher2026!";
+const DEMO_LEARNER_EMAIL = "demo.learner@questlearn.dev";
+const DEMO_LEARNER_PASSWORD = "DemoLearner2026!";
+const SEEDED_CLASS_NAME = "Period 3 — Earth Science";
+
 const uniqueSuffix = Date.now();
 const className = `Playwright Mastery Class ${uniqueSuffix}`;
-const conceptName = `Playwright Tagging Concept ${uniqueSuffix}`;
+// Fixed, readable name rather than a timestamp -- this concept is
+// still created and tagged for real through the UI below (proving the
+// tagging flow), it's just never the thing either screenshot shows
+// (see the dedicated screenshot step further down), so a duplicate on
+// a non-reset volume is a harmless, readable extra row rather than a
+// wall of "Playwright Tagging Concept 1786..." variants.
+const conceptName = "Playwright Tagging Flow Concept";
 
 const learnerName = "Playwright Mastery Learner";
 const learnerEmail = `playwright.mastery+${uniqueSuffix}@questlearn.dev`;
@@ -125,7 +135,6 @@ test.describe.serial("mastery browser journey: tag -> assign -> attempt with hin
     await page.goto("/mastery");
     await expect(page.getByTestId("mastery-concept-list")).toBeVisible();
     await expect(page.getByTestId("mastery-concept-card").first()).toBeVisible();
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "learner-concept-view.png"), fullPage: true });
   });
 
   test("the owning teacher sees the same learner's mastery reflected on the class-mastery view", async ({ page }) => {
@@ -134,6 +143,42 @@ test.describe.serial("mastery browser journey: tag -> assign -> attempt with hin
 
     await expect(page.getByTestId("class-mastery-stat-cards")).toBeVisible();
     await expect(page.getByTestId("class-mastery-learner-list")).toContainText(learnerName);
+  });
+
+  /**
+   * The exercise flow above proves the real create -> tag -> assign ->
+   * join -> attempt -> submit -> mastery pipeline end to end, but its
+   * throwaway concept/class/learner names carry a run timestamp, so
+   * they're the wrong source for the two required module screenshots
+   * on a Docker volume that's been reused across verification runs
+   * (screenshots would accumulate a growing list of "Playwright ..."
+   * entries alongside the real seeded ones). Both screenshots are
+   * captured here instead, from the seeded demo teacher/learner/class
+   * that only `prisma/seed.ts` ever writes to -- no other spec file in
+   * this suite touches "Period 3 — Earth Science" or the seeded
+   * learner, so this is stable and clean regardless of how many times
+   * the suite has run against the current database.
+   */
+  test("screenshots: seeded demo learner and class mastery views stay clean across repeated runs", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(DEMO_LEARNER_EMAIL);
+    await page.getByLabel("Password").fill(DEMO_LEARNER_PASSWORD);
+    await page.getByRole("button", { name: /sign in/i }).click();
+    await expect(page).toHaveURL(/\/dashboard/);
+
+    await page.goto("/mastery");
+    await expect(page.getByTestId("mastery-concept-list")).toBeVisible();
+    await expect(page.getByTestId("mastery-concept-card").first()).toBeVisible();
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "learner-concept-view.png"), fullPage: true });
+
+    await login(page);
+    await page.goto("/classes");
+    await page.getByTestId("class-card").filter({ hasText: SEEDED_CLASS_NAME }).click();
+    await expect(page).toHaveURL(/\/classes\/[0-9a-f-]+$/);
+    const seededClassId = page.url().split("/classes/")[1];
+
+    await page.goto(`/classes/${seededClassId}/mastery`);
+    await expect(page.getByTestId("class-mastery-stat-cards")).toBeVisible();
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "teacher-class-mastery-view.png"), fullPage: true });
   });
 
