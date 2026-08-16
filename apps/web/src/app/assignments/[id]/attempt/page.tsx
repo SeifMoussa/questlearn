@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@questlearn/design-system";
 import { QuestionRenderer } from "@/components/QuestionRenderer";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError, AttemptDetail, autosaveResponse, startAttempt, submitAttempt } from "@/lib/api";
+import { ApiError, AttemptDetail, autosaveResponse, markHintViewed, startAttempt, submitAttempt } from "@/lib/api";
 
 type LoadState = "loading" | "loaded" | "not-found" | "error";
 
@@ -27,6 +27,7 @@ export default function AttemptPlayerPage() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [attempt, setAttempt] = useState<AttemptDetail | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [hintsViewed, setHintsViewed] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<Record<string, "idle" | "saving" | "saved">>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -43,8 +44,13 @@ export default function AttemptPlayerPage() {
         }
         setAttempt(result);
         const initial: Record<string, unknown> = {};
-        for (const q of result.questions) initial[q.activityQuestionId] = q.responseValue;
+        const initialHints: Record<string, boolean> = {};
+        for (const q of result.questions) {
+          initial[q.activityQuestionId] = q.responseValue;
+          initialHints[q.activityQuestionId] = q.hintViewed;
+        }
         setAnswers(initial);
+        setHintsViewed(initialHints);
         setLoadState("loaded");
       })
       .catch((err) => {
@@ -71,6 +77,18 @@ export default function AttemptPlayerPage() {
     autosaveResponse(accessToken, attempt.id, activityQuestionId, value)
       .then(() => setSaving((prev) => ({ ...prev, [activityQuestionId]: "saved" })))
       .catch(() => setSaving((prev) => ({ ...prev, [activityQuestionId]: "idle" })));
+  }
+
+  function onRevealHint(activityQuestionId: string) {
+    if (!accessToken || !attempt || hintsViewed[activityQuestionId]) return;
+    // Optimistic — flips immediately so the hint text shows without
+    // waiting on the round trip; never re-fires once already true.
+    setHintsViewed((prev) => ({ ...prev, [activityQuestionId]: true }));
+    markHintViewed(accessToken, attempt.id, activityQuestionId).catch(() => {
+      // The reveal already happened client-side; a failed persist call
+      // just means the server won't have hintViewed recorded for
+      // mastery purposes on this response, not a broken UI.
+    });
   }
 
   async function onSubmit() {
@@ -154,6 +172,8 @@ export default function AttemptPlayerPage() {
               question={q}
               value={answers[q.activityQuestionId]}
               onChange={(value) => onAnswerChange(q.activityQuestionId, value)}
+              hintViewed={hintsViewed[q.activityQuestionId] ?? false}
+              onRevealHint={() => onRevealHint(q.activityQuestionId)}
             />
             {saving[q.activityQuestionId] === "saved" && (
               <p style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8 }}>Saved</p>

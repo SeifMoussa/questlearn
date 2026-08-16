@@ -226,6 +226,10 @@ export interface QuestionSummary {
   createdAt: string;
   archivedAt: string | null;
   currentVersion: QuestionVersion;
+  // Present on GET /questions/:id (single-question fetch) only —
+  // list/create/update responses don't include it since the edit
+  // page is the only place concept tags are shown/edited.
+  concepts?: { id: string; conceptId: string; concept: { id: string; name: string } }[];
 }
 
 export function listQuestions(accessToken: string) {
@@ -428,6 +432,7 @@ export interface AttemptQuestion {
   explanation: string | null;
   options: QuestionOption[] | null;
   responseValue: unknown;
+  hintViewed: boolean;
   correctAnswer?: CorrectAnswer;
   isCorrect?: boolean | null;
   pointsAwarded?: number | null;
@@ -452,7 +457,7 @@ export function getAttempt(accessToken: string, id: string) {
 }
 
 export function autosaveResponse(accessToken: string, attemptId: string, activityQuestionId: string, responseValue: unknown) {
-  return authedRequest<{ activityQuestionId: string; responseValue: unknown }>(
+  return authedRequest<{ activityQuestionId: string; responseValue: unknown; hintViewed: boolean }>(
     accessToken,
     "PATCH",
     `/attempts/${attemptId}/responses/${activityQuestionId}`,
@@ -460,6 +465,78 @@ export function autosaveResponse(accessToken: string, attemptId: string, activit
   );
 }
 
+/**
+ * Marks a question's hint as revealed on an in-progress attempt.
+ * Deliberately omits `responseValue` from the body — the API only
+ * touches fields actually present in the request, so this never
+ * clobbers the learner's already-saved answer.
+ */
+export function markHintViewed(accessToken: string, attemptId: string, activityQuestionId: string) {
+  return authedRequest<{ activityQuestionId: string; responseValue: unknown; hintViewed: boolean }>(
+    accessToken,
+    "PATCH",
+    `/attempts/${attemptId}/responses/${activityQuestionId}`,
+    { hintViewed: true },
+  );
+}
+
 export function submitAttempt(accessToken: string, id: string) {
   return authedRequest<AttemptDetail>(accessToken, "POST", `/attempts/${id}/submit`);
+}
+
+// ---------------------------------------------------------------------------
+// Mastery (Module 6)
+// ---------------------------------------------------------------------------
+
+export interface Concept {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  archivedAt: string | null;
+}
+
+export function listConcepts(accessToken: string) {
+  return authedRequest<Concept[]>(accessToken, "GET", "/concepts");
+}
+
+export function createConcept(accessToken: string, params: { name: string; description?: string }) {
+  return authedRequest<Concept>(accessToken, "POST", "/concepts", params);
+}
+
+export function archiveConcept(accessToken: string, id: string) {
+  return authedRequest<Concept>(accessToken, "DELETE", `/concepts/${id}`);
+}
+
+export interface QuestionConceptTag {
+  id: string;
+  conceptId: string;
+  concept: Concept;
+}
+
+export function updateQuestionConcepts(accessToken: string, questionId: string, conceptIds: string[]) {
+  return authedRequest<QuestionConceptTag[]>(accessToken, "PATCH", `/questions/${questionId}/concepts`, { conceptIds });
+}
+
+export type MasteryState = "not_started" | "beginning" | "developing" | "proficient" | "mastered";
+
+export interface ConceptMastery {
+  conceptId: string;
+  conceptName: string;
+  score: number | null;
+  state: MasteryState;
+}
+
+export function getMyMastery(accessToken: string) {
+  return authedRequest<ConceptMastery[]>(accessToken, "GET", "/mastery/me");
+}
+
+export interface ClassMasteryLearner {
+  learnerId: string;
+  learnerName: string;
+  concepts: ConceptMastery[];
+}
+
+export function getClassMastery(accessToken: string, classId: string) {
+  return authedRequest<{ learners: ClassMasteryLearner[] }>(accessToken, "GET", `/classes/${classId}/mastery`);
 }

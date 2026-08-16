@@ -46,6 +46,11 @@ function LearnerDashboard({ name, email, onLogout }: { name: string; email: stri
           <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 4 }}>{email}</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/mastery">
+            <Button variant="secondary" size="md">
+              My mastery
+            </Button>
+          </Link>
           <Link href="/join">
             <Button variant="secondary" size="md">
               Join another class
@@ -195,6 +200,11 @@ export default function DashboardPage() {
         <Link href="/activities">
           <Button variant="secondary" size="md">
             Activities
+          </Button>
+        </Link>
+        <Link href="/concepts">
+          <Button variant="secondary" size="md">
+            Concepts
           </Button>
         </Link>
       </div>
