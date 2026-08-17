@@ -5,8 +5,14 @@ const SCREENSHOT_DIR = path.resolve(__dirname, "../../../docs/screenshots/05-ass
 
 const DEMO_EMAIL = "demo.teacher@questlearn.dev";
 const DEMO_PASSWORD = "DemoTeacher2026!";
+const SEEDED_CLASS_NAME = "Period 3 — Earth Science";
 const uniqueSuffix = Date.now();
-const className = `Playwright Assignments Class ${uniqueSuffix}`;
+// Fixed, readable name rather than a timestamp -- this class is still
+// created for real through the UI below (proving the assign flow),
+// it's just never the source of the assignment-form.png screenshot
+// (see the dedicated screenshot step further down), so a duplicate on
+// a non-reset volume is a harmless, readable extra row.
+const className = "Playwright Assignments Class";
 
 const learnerName = "Playwright Learner";
 const learnerEmail = `playwright.learner+${uniqueSuffix}@questlearn.dev`;
@@ -46,7 +52,6 @@ test.describe.serial("assignments and attempts browser journey: assign -> join -
     await page.getByRole("button", { name: /^assign$/i }).click();
 
     await expect(page.getByTestId("assignments-list")).toContainText(className);
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "assignment-form.png"), fullPage: true });
   });
 
   test("a brand-new learner redeems the join code, completes the assignment, and sees a real score", async ({ page }) => {
@@ -101,6 +106,33 @@ test.describe.serial("assignments and attempts browser journey: assign -> join -
     await expect(page).toHaveURL(/\/attempts\/[0-9a-f-]+\/result$/);
     await expect(page.getByTestId("result-score")).toBeVisible();
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "result.png"), fullPage: true });
+  });
+
+  /**
+   * The exercise flow above proves the real assign -> join -> attempt
+   * -> submit -> result pipeline end to end, but its throwaway class
+   * name carries a run timestamp in its join code/roster, so it's the
+   * wrong source for the assignment-form.png screenshot on a Docker
+   * volume reused across verification runs. Captured here instead
+   * from the seeded demo teacher's real assign page for the seeded
+   * published activity and the seeded "Period 3 — Earth Science"
+   * class — no other spec file assigns that activity to that class a
+   * second time (assigning twice is allowed but would just add a
+   * second assignment row), so this stays a clean, stable target
+   * regardless of how many times the suite has run.
+   */
+  test("screenshots: seeded demo teacher's assign form stays clean across repeated runs", async ({ page }) => {
+    await login(page);
+
+    await page.goto("/activities");
+    await page.getByTestId("activity-card").filter({ hasText: "Published: Science & Math Fundamentals" }).click();
+    await page.getByRole("link", { name: /^assign$/i }).click();
+    await expect(page).toHaveURL(/\/assign$/);
+
+    await page.locator("select").selectOption(SEEDED_CLASS_NAME);
+    const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    await page.locator("#dueAt").fill(dueDate);
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "assignment-form.png"), fullPage: true });
   });
 
   test("visiting /dashboard while unauthenticated redirects to /login", async ({ page }) => {
