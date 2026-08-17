@@ -1,6 +1,7 @@
 import { AttemptsService } from "../../src/attempts/attempts.service";
 import { PrismaService } from "../../src/prisma/prisma.service";
 import { SecurityLogger } from "../../src/auth/security-logger.service";
+import { MasteryService } from "../../src/mastery/mastery.service";
 
 /**
  * Isolates the atomic claim pattern in `submit()` from a real database:
@@ -62,7 +63,8 @@ describe("AttemptsService.submit — claim pattern (unit)", () => {
   it("count === 1 (won the claim): proceeds to grade and logs once", async () => {
     const prisma = makePrisma(1);
     const securityLogger = { log: jest.fn() } as unknown as SecurityLogger;
-    const service = new AttemptsService(prisma as unknown as PrismaService, securityLogger);
+    const masteryService = { recordEvidenceForAttempt: jest.fn().mockResolvedValue(undefined) } as unknown as MasteryService;
+    const service = new AttemptsService(prisma as unknown as PrismaService, securityLogger, masteryService);
 
     // loadAttemptDetail (called at the end) re-fetches the attempt via
     // a plain findFirst outside the transaction.
@@ -85,7 +87,8 @@ describe("AttemptsService.submit — claim pattern (unit)", () => {
   it("count === 0 (lost the claim / duplicate submit): does not re-grade or log again", async () => {
     const prisma = makePrisma(0);
     const securityLogger = { log: jest.fn() } as unknown as SecurityLogger;
-    const service = new AttemptsService(prisma as unknown as PrismaService, securityLogger);
+    const masteryService = { recordEvidenceForAttempt: jest.fn().mockResolvedValue(undefined) } as unknown as MasteryService;
+    const service = new AttemptsService(prisma as unknown as PrismaService, securityLogger, masteryService);
 
     prisma.attempt.findFirst.mockResolvedValue(
       baseAttempt({ status: "submitted", submittedAt: new Date(), score: 0.75, responses: [], assignment: { activityId: "activity-1" } }),

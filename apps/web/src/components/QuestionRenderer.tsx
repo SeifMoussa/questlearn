@@ -29,9 +29,22 @@ interface QuestionRendererProps {
   question: RenderableQuestion;
   value?: unknown;
   onChange?: (value: unknown) => void;
+  /**
+   * Interactive-mode-only hint state (Module 6): when `onChange` is
+   * provided, the hint is click-to-reveal rather than always visible.
+   * `hintViewed` reflects the attempt response's persisted state (so a
+   * page reload keeps a previously-revealed hint expanded);
+   * `onRevealHint` fires once, the first time the learner expands it —
+   * callers are responsible for not calling it again afterward.
+   * Non-interactive (preview) mode ignores both and keeps the
+   * original always-visible rendering, since there's no attempt or
+   * learner to track hint-viewing for on a teacher preview screen.
+   */
+  hintViewed?: boolean;
+  onRevealHint?: () => void;
 }
 
-export function QuestionRenderer({ question, value, onChange }: QuestionRendererProps) {
+export function QuestionRenderer({ question, value, onChange, hintViewed, onRevealHint }: QuestionRendererProps) {
   const v = question;
   const interactive = onChange !== undefined;
 
@@ -140,7 +153,36 @@ export function QuestionRenderer({ question, value, onChange }: QuestionRenderer
         />
       )}
 
-      {v.hint && <p style={{ marginTop: 16, fontSize: 13, color: "var(--text-secondary)" }}>Hint: {v.hint}</p>}
+      {v.hint && interactive && onRevealHint ? (
+        <div style={{ marginTop: 16 }}>
+          {hintViewed ? (
+            <p data-testid="hint-text" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+              Hint: {v.hint}
+            </p>
+          ) : (
+            <button
+              type="button"
+              data-testid="reveal-hint-button"
+              onClick={onRevealHint}
+              style={{
+                background: "none",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-md)",
+                padding: "6px 12px",
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+              }}
+            >
+              Show hint
+            </button>
+          )}
+        </div>
+      ) : (
+        v.hint && !interactive && (
+          <p style={{ marginTop: 16, fontSize: 13, color: "var(--text-secondary)" }}>Hint: {v.hint}</p>
+        )
+      )}
     </div>
   );
 }

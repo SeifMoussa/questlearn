@@ -220,6 +220,11 @@ export default function ClassDetailPage() {
               Rename
             </Button>
           )}
+          <Link href={`/classes/${cls.id}/mastery`}>
+            <Button variant="secondary" size="sm">
+              Class mastery
+            </Button>
+          </Link>
           <Button variant="ghost" size="sm" onClick={toggleArchive}>
             {cls.archivedAt ? "Un-archive" : "Archive"}
           </Button>

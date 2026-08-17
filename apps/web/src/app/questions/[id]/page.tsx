@@ -3,9 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Badge, Button, Tabs } from "@questlearn/design-system";
+import { Badge, Button, Select, Tabs, Tag } from "@questlearn/design-system";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError, QuestionSummary, archiveQuestion, getQuestion } from "@/lib/api";
+import {
+  ApiError,
+  Concept,
+  QuestionSummary,
+  archiveQuestion,
+  getQuestion,
+  listConcepts,
+  updateQuestionConcepts,
+} from "@/lib/api";
 import { QuestionRenderer } from "@/components/QuestionRenderer";
 
 type LoadState = "loading" | "loaded" | "not-found" | "error";
@@ -61,6 +69,109 @@ function AnswerKey({ question }: { question: QuestionSummary }) {
   );
 }
 
+/**
+ * Full-set-replacement concept tagging (Module 6): concepts attach to
+ * the `Question`, not its versioned content, so this section lives
+ * outside the Editor/Preview tabs and never triggers a new version.
+ * Mirrors the accepted-answers `Tag` pattern from `QuestionForm.tsx`
+ * (short_text questions) — a picker to add, a chip per attached
+ * concept with a remove action.
+ */
+function ConceptsSection({
+  question,
+  allConcepts,
+  onChanged,
+}: {
+  question: QuestionSummary;
+  allConcepts: Concept[];
+  onChanged: () => void;
+}) {
+  const { accessToken } = useAuth();
+  const [picked, setPicked] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const attached = question.concepts ?? [];
+  const attachedIds = new Set(attached.map((c) => c.conceptId));
+  const available = allConcepts.filter((c) => !c.archivedAt && !attachedIds.has(c.id));
+
+  async function addConcept(conceptId: string) {
+    if (!accessToken || !conceptId) return;
+    setSaving(true);
+    try {
+      const nextIds = [...attached.map((c) => c.conceptId), conceptId];
+      await updateQuestionConcepts(accessToken, question.id, nextIds);
+      setPicked("");
+      onChanged();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeConcept(conceptId: string) {
+    if (!accessToken) return;
+    setSaving(true);
+    try {
+      const nextIds = attached.map((c) => c.conceptId).filter((id) => id !== conceptId);
+      await updateQuestionConcepts(accessToken, question.id, nextIds);
+      onChanged();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section
+      data-testid="concepts-section"
+      style={{
+        background: "var(--surface-card)",
+        borderRadius: "var(--radius-lg)",
+        boxShadow: "var(--shadow-card)",
+        padding: 24,
+        maxWidth: 560,
+        marginTop: 20,
+      }}
+    >
+      <h2 style={{ fontSize: 14, fontWeight: "var(--fw-semibold)", marginBottom: 8 }}>Concepts</h2>
+      <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
+        Tags used to attribute mastery evidence when this question is graded. Editing the question&apos;s
+        wording never requires re-tagging.
+      </p>
+
+      <div data-testid="attached-concepts" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+        {attached.length === 0 && (
+          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>No concepts tagged yet.</span>
+        )}
+        {attached.map((tag) => (
+          <Tag key={tag.id} onRemove={saving ? undefined : () => removeConcept(tag.conceptId)}>
+            {tag.concept.name}
+          </Tag>
+        ))}
+      </div>
+
+      {available.length > 0 ? (
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Select
+            options={["", ...available.map((c) => c.name)]}
+            value={picked}
+            onChange={(name) => {
+              setPicked(name);
+              const concept = available.find((c) => c.name === name);
+              if (concept) addConcept(concept.id);
+            }}
+            size="sm"
+          />
+        </div>
+      ) : (
+        allConcepts.length === 0 && (
+          <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+            No concepts exist yet — <Link href="/concepts">create one</Link> first.
+          </p>
+        )
+      )}
+    </section>
+  );
+}
+
 export default function QuestionDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -69,6 +180,7 @@ export default function QuestionDetailPage() {
 
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [question, setQuestion] = useState<QuestionSummary | null>(null);
+  const [allConcepts, setAllConcepts] = useState<Concept[]>([]);
   const [tab, setTab] = useState("Editor");
 
   const load = useCallback(() => {
@@ -96,6 +208,7 @@ export default function QuestionDetailPage() {
   useEffect(() => {
     if (status === "authenticated" && accessToken) {
       load();
+      listConcepts(accessToken).then(setAllConcepts).catch(() => {});
     }
   }, [status, accessToken, load]);
 
@@ -206,6 +319,8 @@ export default function QuestionDetailPage() {
           <QuestionRenderer question={question.currentVersion} />
         )}
       </section>
+
+      <ConceptsSection question={question} allConcepts={allConcepts} onChanged={load} />
     </main>
   );
 }

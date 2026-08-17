@@ -5,6 +5,7 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { AccessTokenPayload } from "../auth/guards/jwt-auth.guard";
 import { QuestionsService, TeacherContext } from "./questions.service";
 import { CreateQuestionDto, UpdateQuestionDto } from "./dto/question-payload.dto";
+import { UpdateQuestionConceptsDto } from "./dto/update-question-concepts.dto";
 
 function contextOf(user: AccessTokenPayload): TeacherContext {
   return { userId: user.sub, tenantId: user.tenantId };
@@ -45,5 +46,15 @@ export class QuestionsController {
   @ApiOperation({ summary: "Archive a question" })
   archive(@CurrentUser() user: AccessTokenPayload, @Param("id") id: string) {
     return this.questionsService.archive(contextOf(user), id);
+  }
+
+  @Patch(":id/concepts")
+  @ApiOperation({ summary: "Replace a question's concept tags (full-set replacement, no versioning impact)" })
+  updateConcepts(
+    @CurrentUser() user: AccessTokenPayload,
+    @Param("id") id: string,
+    @Body() dto: UpdateQuestionConceptsDto,
+  ) {
+    return this.questionsService.updateConcepts(contextOf(user), id, dto);
   }
 }

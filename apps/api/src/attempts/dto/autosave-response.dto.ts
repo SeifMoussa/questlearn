@@ -1,4 +1,4 @@
-import { IsOptional } from "class-validator";
+import { IsBoolean, IsOptional } from "class-validator";
 
 /**
  * `responseValue` carries no shape constraints beyond `@IsOptional()`:
@@ -14,4 +14,15 @@ import { IsOptional } from "class-validator";
 export class AutosaveResponseDto {
   @IsOptional()
   responseValue?: unknown;
+
+  /**
+   * Set true the first time a learner expands this question's hint
+   * (click-to-reveal). Only `true` is ever meaningful here — the
+   * service layer never writes `false` over an already-true value, so
+   * omitting this field (the normal autosave-on-typing case) or
+   * sending `false` explicitly both leave a prior `true` untouched.
+   */
+  @IsOptional()
+  @IsBoolean()
+  hintViewed?: boolean;
 }
