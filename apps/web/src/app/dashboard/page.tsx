@@ -51,6 +51,11 @@ function LearnerDashboard({ name, email, onLogout }: { name: string; email: stri
               My mastery
             </Button>
           </Link>
+          <Link href="/xp">
+            <Button variant="secondary" size="md">
+              XP & Achievements
+            </Button>
+          </Link>
           <Link href="/join">
             <Button variant="secondary" size="md">
               Join another class

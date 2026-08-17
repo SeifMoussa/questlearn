@@ -4,6 +4,7 @@ import * as argon2 from "argon2";
 import { generateJoinCode, joinCodeExpiry } from "../src/classes/join-code.util";
 import { scoreQuestion, overallScore } from "../src/attempts/scoring";
 import { MasteryService } from "../src/mastery/mastery.service";
+import { GamificationService } from "../src/gamification/gamification.service";
 
 /**
  * Seeds one fictional demo teacher account so the login screen and
@@ -564,16 +565,29 @@ async function seedDemoAssignmentAndAttempt(
   // data. `recordEvidenceForAttempt` only touches its `tx` argument,
   // so the plain (non-transactional) PrismaClient works fine here.
   const masteryService = new MasteryService(prisma as never);
-  await masteryService.recordEvidenceForAttempt(
+  const touchedConceptIds = await masteryService.recordEvidenceForAttempt(
     prisma as unknown as Prisma.TransactionClient,
     { tenantId, learnerId: learner.id },
     gradedForEvidence,
   );
 
+  // Routes the seeded attempt through the REAL award logic (Module 7)
+  // too — the same `GamificationService.awardForAttempt` that
+  // `AttemptsService.submit()` calls right after mastery recording —
+  // so the demo learner's /xp page shows genuine XP and, since this
+  // is their first submitted attempt, a real quest_starter badge.
+  const totalAwardedPoints = graded.reduce((sum, g) => sum + g.pointsAwarded, 0);
+  const gamificationService = new GamificationService(prisma as never, masteryService);
+  await gamificationService.awardForAttempt(
+    prisma as unknown as Prisma.TransactionClient,
+    { tenantId, learnerId: learner.id },
+    { attemptId: attempt.id, totalAwardedPoints, score, touchedConceptIds },
+  );
+
   console.log(
     `Seeded demo assignment (${publishedActivity.title} -> ${homeroom.name}) and one submitted attempt (score ${Math.round(score * 100)}%).`,
   );
-  console.log("Recorded mastery evidence for the submitted attempt via the real grading-time recording path.");
+  console.log("Recorded mastery evidence and gamification XP/badges via the real grading-time recording path.");
 }
 
 main().catch((error) => {

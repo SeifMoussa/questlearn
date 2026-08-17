@@ -46,6 +46,8 @@ model Tenant {
   concepts             Concept[]
   questionConcepts     QuestionConcept[]
   masteryEvidence      MasteryEvidence[]
+  xpTransactions       XpTransaction[]
+  learnerBadges        LearnerBadge[]
 
   @@map("tenants")
 }
@@ -72,6 +74,8 @@ model User {
   attempts             Attempt[]
   concepts             Concept[]
   masteryEvidence      MasteryEvidence[] @relation("MasteryEvidenceLearner")
+  xpTransactions       XpTransaction[]
+  learnerBadges        LearnerBadge[]
 
   // Email uniqueness is scoped globally (login is by email alone, no
   // tenant selector in Module 1), not per-tenant.
@@ -396,6 +400,7 @@ model Attempt {
   assignment Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   learner    User               @relation(fields: [learnerId], references: [id], onDelete: Cascade)
   responses  AttemptResponse[]
+  xpTransaction XpTransaction?
 
   @@unique([assignmentId, learnerId])
   @@index([tenantId])
@@ -519,4 +524,58 @@ model MasteryEvidence {
   @@index([learnerId])
   @@index([conceptId])
   @@map("mastery_evidence")
+}
+
+/// One row per submitted `Attempt`, written INSIDE the same grading
+/// transaction as `AttemptsService.submit()` (mirroring
+/// `MasteryEvidence`'s established pattern) — never a second
+/// transaction, never backfilled. `attemptId` is `@unique` rather than
+/// keyed by `(attemptId)` in a composite, since exactly one XP award
+/// can ever exist per attempt: only the winning claim in `submit()`'s
+/// atomic-claim pattern ever reaches the code that creates this row,
+/// so the unique constraint is a structural guarantee, not just a
+/// defensive one.
+model XpTransaction {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  learnerId  String   @map("learner_id")
+  attemptId  String   @unique @map("attempt_id")
+  amount     Int
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  learner User    @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([learnerId])
+  @@map("xp_transactions")
+}
+
+enum BadgeType {
+  quest_starter
+  perfect_score
+  concept_champion
+  persistent_learner
+  rising_star
+}
+
+/// Award-once badges. `@@unique([learnerId, badgeType])` is the
+/// primary idempotency guard (a badge can structurally never be
+/// awarded twice to the same learner); `GamificationService` also
+/// pre-checks existing badges before inserting, and inserts via
+/// `createMany({ skipDuplicates: true })` as defense in depth.
+model LearnerBadge {
+  id        String    @id @default(uuid())
+  tenantId  String    @map("tenant_id")
+  learnerId String    @map("learner_id")
+  badgeType BadgeType @map("badge_type")
+  awardedAt DateTime  @default(now()) @map("awarded_at")
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  learner User   @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@unique([learnerId, badgeType])
+  @@index([tenantId])
+  @@map("learner_badges")
 }

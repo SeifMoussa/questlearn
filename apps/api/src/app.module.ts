@@ -12,6 +12,7 @@ import { AssignmentsModule } from "./assignments/assignments.module";
 import { AttemptsModule } from "./attempts/attempts.module";
 import { ConceptsModule } from "./concepts/concepts.module";
 import { MasteryModule } from "./mastery/mastery.module";
+import { GamificationModule } from "./gamification/gamification.module";
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { MasteryModule } from "./mastery/mastery.module";
     AttemptsModule,
     ConceptsModule,
     MasteryModule,
+    GamificationModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -540,3 +540,26 @@ export interface ClassMasteryLearner {
 export function getClassMastery(accessToken: string, classId: string) {
   return authedRequest<{ learners: ClassMasteryLearner[] }>(accessToken, "GET", `/classes/${classId}/mastery`);
 }
+
+// ---------------------------------------------------------------------------
+// Gamification (Module 7)
+// ---------------------------------------------------------------------------
+
+export type BadgeType = "quest_starter" | "perfect_score" | "concept_champion" | "persistent_learner" | "rising_star";
+
+export interface EarnedBadge {
+  badgeType: BadgeType;
+  awardedAt: string;
+}
+
+export interface GamificationProfile {
+  totalXp: number;
+  level: number;
+  xpIntoLevel: number;
+  xpForNextLevel: number;
+  badges: EarnedBadge[];
+}
+
+export function getGamificationProfile(accessToken: string) {
+  return authedRequest<GamificationProfile>(accessToken, "GET", "/gamification/profile");
+}

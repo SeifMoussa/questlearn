@@ -41,9 +41,9 @@ jobs:
       SESSION_SECRET: ci-session-secret-placeholder-value
       CSRF_SECRET: ci-csrf-secret-placeholder-value
       JWT_SECRET: ci-jwt-secret-placeholder-value
-      # See .env.example: raised from 20 to 30 in Module 6 to cover the
-      # 6th Playwright spec file's added logins within the shared window.
-      AUTH_THROTTLE_LIMIT: 30
+      # See .env.example: raised from 30 to 40 in Module 7 to cover the
+      # 8th Playwright spec file's added logins within the shared window.
+      AUTH_THROTTLE_LIMIT: 40
       AUTH_THROTTLE_TTL_MS: 60000
       API_URL: http://localhost:4000
       WEB_URL: http://localhost:3000
