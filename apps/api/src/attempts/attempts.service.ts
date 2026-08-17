@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { SecurityLogger } from "../auth/security-logger.service";
 import { MasteryService } from "../mastery/mastery.service";
+import { GamificationService } from "../gamification/gamification.service";
 import { scoreQuestion, overallScore } from "./scoring";
 import { AutosaveResponseDto } from "./dto/autosave-response.dto";
 
@@ -21,6 +22,7 @@ export class AttemptsService {
     private readonly prisma: PrismaService,
     private readonly securityLogger: SecurityLogger,
     private readonly masteryService: MasteryService,
+    private readonly gamificationService: GamificationService,
   ) {}
 
   /**
@@ -336,10 +338,23 @@ export class AttemptsService {
       // (Master Spec §10): "responses graded -> score computed ->
       // mastery evidence recorded" — never a second transaction, and
       // reached only by the winning claim above.
-      await this.masteryService.recordEvidenceForAttempt(
+      const touchedConceptIds = await this.masteryService.recordEvidenceForAttempt(
         tx,
         { tenantId: ctx.tenantId, learnerId: ctx.userId },
         gradedForEvidence,
+      );
+
+      // Gamification (Module 7) awards XP/badges right after mastery
+      // evidence, still inside the same grading transaction and still
+      // reached only by the winning claim — same idempotency argument
+      // as MasteryEvidence above. touchedConceptIds comes straight
+      // from the mastery recording call above rather than a second,
+      // duplicate QuestionConcept lookup.
+      const totalAwardedPoints = graded.reduce((sum, g) => sum + g.pointsAwarded, 0);
+      await this.gamificationService.awardForAttempt(
+        tx,
+        { tenantId: ctx.tenantId, learnerId: ctx.userId },
+        { attemptId: attempt.id, totalAwardedPoints, score, touchedConceptIds },
       );
 
       return true;

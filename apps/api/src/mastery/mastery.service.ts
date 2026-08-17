@@ -54,19 +54,25 @@ export class MasteryService {
    * conceptId])` constraint plus `skipDuplicates` make a duplicate
    * insert a silent no-op rather than an error even if this were ever
    * invoked twice for the same response.
+   *
+   * Returns the distinct concept ids actually touched (tagged onto at
+   * least one graded question), so `AttemptsService.submit()` can pass
+   * them straight to `GamificationService.awardForAttempt` for
+   * `concept_champion` evaluation without a second, duplicate
+   * `QuestionConcept` lookup.
    */
   async recordEvidenceForAttempt(
     tx: Prisma.TransactionClient,
     ctx: { tenantId: string; learnerId: string },
     gradedResponses: GradedResponseForEvidence[],
-  ): Promise<void> {
-    if (gradedResponses.length === 0) return;
+  ): Promise<string[]> {
+    if (gradedResponses.length === 0) return [];
 
     const questionIds = Array.from(new Set(gradedResponses.map((r) => r.questionId)));
     const tags = await tx.questionConcept.findMany({
       where: { questionId: { in: questionIds }, tenantId: ctx.tenantId },
     });
-    if (tags.length === 0) return;
+    if (tags.length === 0) return [];
 
     const conceptIdsByQuestion = new Map<string, string[]>();
     for (const tag of tags) {
@@ -76,12 +82,14 @@ export class MasteryService {
     }
 
     const rows: Prisma.MasteryEvidenceCreateManyInput[] = [];
+    const touchedConceptIds = new Set<string>();
     for (const response of gradedResponses) {
       const conceptIds = conceptIdsByQuestion.get(response.questionId);
       if (!conceptIds || conceptIds.length === 0) continue;
 
       const responseScore = effectiveResponseScore(response.pointsAwarded, response.points, response.hintViewed);
       for (const conceptId of conceptIds) {
+        touchedConceptIds.add(conceptId);
         rows.push({
           tenantId: ctx.tenantId,
           learnerId: ctx.learnerId,
@@ -93,9 +101,10 @@ export class MasteryService {
       }
     }
 
-    if (rows.length === 0) return;
+    if (rows.length === 0) return [];
 
     await tx.masteryEvidence.createMany({ data: rows, skipDuplicates: true });
+    return Array.from(touchedConceptIds);
   }
 
   /**
@@ -133,7 +142,34 @@ export class MasteryService {
    * "no mastery row at all" design for not-started concepts.
    */
   async getMasteryForLearner(ctx: LearnerContext, conceptIds?: string[]): Promise<ConceptMasteryResult[]> {
-    const evidence = await this.prisma.masteryEvidence.findMany({
+    return this.computeMasteryForLearner(this.prisma, ctx, conceptIds);
+  }
+
+  /**
+   * Same aggregation as `getMasteryForLearner`, but runs against a
+   * transaction client instead of the module-level `PrismaService` —
+   * so it can see writes (e.g. the `MasteryEvidence` rows this same
+   * attempt's grading just inserted) that haven't committed yet.
+   * `GamificationService.awardForAttempt` calls this from inside
+   * `AttemptsService.submit()`'s own grading transaction to detect
+   * "a touched concept just reached mastered", which would be
+   * impossible via `this.prisma` (a separate connection reading
+   * committed data only) without a second round trip after commit.
+   */
+  async getMasteryForLearnerInTx(
+    tx: Prisma.TransactionClient,
+    ctx: LearnerContext,
+    conceptIds?: string[],
+  ): Promise<ConceptMasteryResult[]> {
+    return this.computeMasteryForLearner(tx, ctx, conceptIds);
+  }
+
+  private async computeMasteryForLearner(
+    client: PrismaService | Prisma.TransactionClient,
+    ctx: LearnerContext,
+    conceptIds?: string[],
+  ): Promise<ConceptMasteryResult[]> {
+    const evidence = await client.masteryEvidence.findMany({
       where: {
         tenantId: ctx.tenantId,
         learnerId: ctx.userId,
