@@ -17,8 +17,23 @@ export interface LearnerContext {
   tenantId: string;
 }
 
-type QuestWithSteps = Prisma.QuestGetPayload<{ include: { steps: true } }>;
+const stepWithNamesInclude = {
+  activity: { select: { title: true } },
+  concept: { select: { name: true } },
+} satisfies Prisma.QuestStepInclude;
+
+type QuestWithSteps = Prisma.QuestGetPayload<{ include: { steps: { include: typeof stepWithNamesInclude } } } >;
 type QuestStepRow = QuestWithSteps["steps"][number];
+
+/**
+ * The gate-evaluation helpers below only ever read a step's gate
+ * config, never its resolved activity title/concept name — so they
+ * take this minimal shape rather than the full `QuestStepRow`, which
+ * lets callers that don't need names (`findAllForLearner`'s list
+ * query, `evaluateQuestProgressForAttempt`'s candidate query) skip the
+ * join entirely.
+ */
+type QuestStepGate = Pick<QuestStepRow, "activityId" | "requiredConceptId" | "requiredMasteryState">;
 
 @Injectable()
 export class QuestsService {
@@ -63,7 +78,7 @@ export class QuestsService {
   private async findOwnedOrThrow(ctx: TeacherContext, questId: string): Promise<QuestWithSteps> {
     const quest = await this.prisma.quest.findFirst({
       where: { id: questId, tenantId: ctx.tenantId, teacherId: ctx.userId },
-      include: { steps: { orderBy: { order: "asc" } } },
+      include: { steps: { orderBy: { order: "asc" }, include: stepWithNamesInclude } },
     });
     if (!quest) {
       throw new NotFoundException("Quest not found.");
@@ -87,7 +102,9 @@ export class QuestsService {
         id: s.id,
         order: s.order,
         activityId: s.activityId,
+        activityTitle: s.activity?.title ?? null,
         requiredConceptId: s.requiredConceptId,
+        conceptName: s.concept?.name ?? null,
         requiredMasteryState: s.requiredMasteryState,
       })),
     };
@@ -260,7 +277,7 @@ export class QuestsService {
   // ---------------------------------------------------------------
 
   private evaluateSteps(
-    steps: QuestStepRow[],
+    steps: QuestStepGate[],
     submittedActivityIds: Set<string>,
     masteryByConceptId: Map<string, MasteryState>,
   ): boolean[] {
@@ -295,16 +312,16 @@ export class QuestsService {
     return new Set(submittedAttempts.map((a) => a.assignment.activityId));
   }
 
-  private conceptIdsOf(steps: QuestStepRow[]): string[] {
+  private conceptIdsOf(steps: QuestStepGate[]): string[] {
     return Array.from(new Set(steps.map((s) => s.requiredConceptId).filter((id): id is string => !!id)));
   }
 
-  private activityIdsOf(steps: QuestStepRow[]): string[] {
+  private activityIdsOf(steps: QuestStepGate[]): string[] {
     return Array.from(new Set(steps.map((s) => s.activityId).filter((id): id is string => !!id)));
   }
 
   /** Live read path — used by the learner-facing quest list/progress endpoints. */
-  private async computeStepCompletionsLive(ctx: LearnerContext, steps: QuestStepRow[]): Promise<boolean[]> {
+  private async computeStepCompletionsLive(ctx: LearnerContext, steps: QuestStepGate[]): Promise<boolean[]> {
     const conceptIds = this.conceptIdsOf(steps);
     const [submittedActivityIds, masteryResults] = await Promise.all([
       this.fetchSubmittedActivityIds(this.prisma, ctx, this.activityIdsOf(steps)),
@@ -318,7 +335,7 @@ export class QuestsService {
   private async computeStepCompletionsInTx(
     tx: Prisma.TransactionClient,
     ctx: LearnerContext,
-    steps: QuestStepRow[],
+    steps: QuestStepGate[],
   ): Promise<boolean[]> {
     const conceptIds = this.conceptIdsOf(steps);
     const [submittedActivityIds, masteryResults] = await Promise.all([
@@ -366,7 +383,7 @@ export class QuestsService {
   private async findVisibleOrThrow(ctx: LearnerContext, questId: string): Promise<QuestWithSteps> {
     const quest = await this.prisma.quest.findFirst({
       where: { id: questId, tenantId: ctx.tenantId, archivedAt: null },
-      include: { steps: { orderBy: { order: "asc" } } },
+      include: { steps: { orderBy: { order: "asc" }, include: stepWithNamesInclude } },
     });
     if (!quest) {
       throw new NotFoundException("Quest not found.");
@@ -395,7 +412,9 @@ export class QuestsService {
         id: s.id,
         order: s.order,
         activityId: s.activityId,
+        activityTitle: s.activity?.title ?? null,
         requiredConceptId: s.requiredConceptId,
+        conceptName: s.concept?.name ?? null,
         requiredMasteryState: s.requiredMasteryState,
         complete: stepCompletions[index],
         unlocked: index < unlocked,
