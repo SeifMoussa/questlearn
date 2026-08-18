@@ -207,6 +207,13 @@ export default function ActivityBuilderPage() {
               </Button>
             </Link>
           )}
+          {!isDraft && (
+            <Link href={`/activities/${activity.id}/report`}>
+              <Button variant="secondary" size="sm">
+                Report
+              </Button>
+            </Link>
+          )}
           {isDraft && (
             <Button variant="primary" size="sm" onClick={onPublish} disabled={busy}>
               Publish
