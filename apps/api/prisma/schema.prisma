@@ -30,24 +30,27 @@ model Tenant {
   plan      TenantPlan @default(free)
   createdAt DateTime   @default(now()) @map("created_at")
 
-  users                User[]
-  verificationTokens   VerificationToken[]
-  passwordResetTokens  PasswordResetToken[]
-  sessions             Session[]
-  classes              Class[]
-  rosterEntries        RosterEntry[]
-  questions            Question[]
-  questionVersions     QuestionVersion[]
-  activities           Activity[]
-  activityQuestions    ActivityQuestion[]
-  assignments          Assignment[]
-  attempts             Attempt[]
-  attemptResponses     AttemptResponse[]
-  concepts             Concept[]
-  questionConcepts     QuestionConcept[]
-  masteryEvidence      MasteryEvidence[]
-  xpTransactions       XpTransaction[]
-  learnerBadges        LearnerBadge[]
+  users               User[]
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  sessions            Session[]
+  classes             Class[]
+  rosterEntries       RosterEntry[]
+  questions           Question[]
+  questionVersions    QuestionVersion[]
+  activities          Activity[]
+  activityQuestions   ActivityQuestion[]
+  assignments         Assignment[]
+  attempts            Attempt[]
+  attemptResponses    AttemptResponse[]
+  concepts            Concept[]
+  questionConcepts    QuestionConcept[]
+  masteryEvidence     MasteryEvidence[]
+  xpTransactions      XpTransaction[]
+  learnerBadges       LearnerBadge[]
+  quests              Quest[]
+  questSteps          QuestStep[]
+  questCompletions    QuestCompletion[]
 
   @@map("tenants")
 }
@@ -62,20 +65,22 @@ model User {
   emailVerifiedAt DateTime? @map("email_verified_at")
   createdAt       DateTime  @default(now()) @map("created_at")
 
-  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sessions             Session[]
-  verificationTokens   VerificationToken[]
-  passwordResetTokens  PasswordResetToken[]
-  classes              Class[]
-  questions            Question[]
-  activities           Activity[]
-  rosterEntries        RosterEntry[]
-  assignments          Assignment[]
-  attempts             Attempt[]
-  concepts             Concept[]
-  masteryEvidence      MasteryEvidence[] @relation("MasteryEvidenceLearner")
-  xpTransactions       XpTransaction[]
-  learnerBadges        LearnerBadge[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions            Session[]
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  classes             Class[]
+  questions           Question[]
+  activities          Activity[]
+  rosterEntries       RosterEntry[]
+  assignments         Assignment[]
+  attempts            Attempt[]
+  concepts            Concept[]
+  masteryEvidence     MasteryEvidence[]    @relation("MasteryEvidenceLearner")
+  xpTransactions      XpTransaction[]
+  learnerBadges       LearnerBadge[]
+  quests              Quest[]
+  questCompletions    QuestCompletion[]    @relation("QuestCompletionLearner")
 
   // Email uniqueness is scoped globally (login is by email alone, no
   // tenant selector in Module 1), not per-tenant.
@@ -88,13 +93,13 @@ model User {
 /// every use; the old row is marked revoked rather than deleted so a
 /// reuse of a stale token can be detected.
 model Session {
-  id             String    @id @default(uuid())
-  tenantId       String    @map("tenant_id")
-  userId         String    @map("user_id")
-  refreshTokenHash String  @unique @map("refresh_token_hash")
-  expiresAt      DateTime  @map("expires_at")
-  revokedAt      DateTime? @map("revoked_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
+  id               String    @id @default(uuid())
+  tenantId         String    @map("tenant_id")
+  userId           String    @map("user_id")
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -106,13 +111,13 @@ model Session {
 
 /// Single-use, expiring, hashed-at-rest email verification tokens.
 model VerificationToken {
-  id         String    @id @default(uuid())
-  tenantId   String    @map("tenant_id")
-  userId     String    @map("user_id")
-  tokenHash  String    @unique @map("token_hash")
-  expiresAt  DateTime  @map("expires_at")
-  usedAt     DateTime? @map("used_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id        String    @id @default(uuid())
+  tenantId  String    @map("tenant_id")
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -124,13 +129,13 @@ model VerificationToken {
 
 /// Single-use, expiring, hashed-at-rest password reset tokens.
 model PasswordResetToken {
-  id         String    @id @default(uuid())
-  tenantId   String    @map("tenant_id")
-  userId     String    @map("user_id")
-  tokenHash  String    @unique @map("token_hash")
-  expiresAt  DateTime  @map("expires_at")
-  usedAt     DateTime? @map("used_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id        String    @id @default(uuid())
+  tenantId  String    @map("tenant_id")
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -187,12 +192,12 @@ model Question {
   createdAt        DateTime  @default(now()) @map("created_at")
   archivedAt       DateTime? @map("archived_at")
 
-  tenant  Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  teacher User              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  versions QuestionVersion[] @relation("QuestionVersions")
-  currentVersion QuestionVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher           User               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  versions          QuestionVersion[]  @relation("QuestionVersions")
+  currentVersion    QuestionVersion?   @relation("CurrentVersion", fields: [currentVersionId], references: [id])
   activityQuestions ActivityQuestion[] @relation("ActivityQuestionQuestion")
-  concepts QuestionConcept[]
+  concepts          QuestionConcept[]
 
   @@index([tenantId])
   @@index([teacherId])
@@ -233,10 +238,10 @@ model QuestionVersion {
   correctAnswer Json         @map("correct_answer")
   createdAt     DateTime     @default(now()) @map("created_at")
 
-  question Question @relation("QuestionVersions", fields: [questionId], references: [id], onDelete: Cascade)
-  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  currentFor Question? @relation("CurrentVersion")
-  pinnedFor ActivityQuestion[] @relation("ActivityQuestionPinnedVersion")
+  question   Question           @relation("QuestionVersions", fields: [questionId], references: [id], onDelete: Cascade)
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  currentFor Question?          @relation("CurrentVersion")
+  pinnedFor  ActivityQuestion[] @relation("ActivityQuestionPinnedVersion")
 
   @@unique([questionId, versionNumber])
   @@index([tenantId])
@@ -302,6 +307,7 @@ model Activity {
   teacher     User               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   questions   ActivityQuestion[]
   assignments Assignment[]
+  questSteps  QuestStep[]
 
   @@index([tenantId])
   @@index([teacherId])
@@ -323,13 +329,13 @@ model Activity {
 /// this row keeps pointing at the version that existed at publish
 /// time.
 model ActivityQuestion {
-  id              String    @id @default(uuid())
-  tenantId        String    @map("tenant_id")
-  activityId      String    @map("activity_id")
-  questionId      String    @map("question_id")
-  pinnedVersionId String?   @map("pinned_version_id")
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  activityId      String   @map("activity_id")
+  questionId      String   @map("question_id")
+  pinnedVersionId String?  @map("pinned_version_id")
   order           Int
-  createdAt       DateTime  @default(now()) @map("created_at")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   activity         Activity          @relation(fields: [activityId], references: [id], onDelete: Cascade)
@@ -360,10 +366,10 @@ model Assignment {
   createdAt  DateTime  @default(now()) @map("created_at")
   archivedAt DateTime? @map("archived_at")
 
-  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  teacher  User       @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  class    Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
-  activity Activity   @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher  User      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  class    Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  activity Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
   attempts Attempt[]
 
   @@index([tenantId])
@@ -396,10 +402,10 @@ model Attempt {
   score        Float?
   createdAt    DateTime      @default(now()) @map("created_at")
 
-  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  assignment Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  learner    User               @relation(fields: [learnerId], references: [id], onDelete: Cascade)
-  responses  AttemptResponse[]
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignment    Assignment        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  learner       User              @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  responses     AttemptResponse[]
   xpTransaction XpTransaction?
 
   @@unique([assignmentId, learnerId])
@@ -456,10 +462,11 @@ model Concept {
   createdAt   DateTime  @default(now()) @map("created_at")
   archivedAt  DateTime? @map("archived_at")
 
-  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  teacher   User              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  questions QuestionConcept[]
-  evidence  MasteryEvidence[]
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher    User              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  questions  QuestionConcept[]
+  evidence   MasteryEvidence[]
+  questSteps QuestStep[]
 
   @@index([tenantId])
   @@index([teacherId])
@@ -536,12 +543,12 @@ model MasteryEvidence {
 /// so the unique constraint is a structural guarantee, not just a
 /// defensive one.
 model XpTransaction {
-  id         String   @id @default(uuid())
-  tenantId   String   @map("tenant_id")
-  learnerId  String   @map("learner_id")
-  attemptId  String   @unique @map("attempt_id")
-  amount     Int
-  createdAt  DateTime @default(now()) @map("created_at")
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  learnerId String   @map("learner_id")
+  attemptId String   @unique @map("attempt_id")
+  amount    Int
+  createdAt DateTime @default(now()) @map("created_at")
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   learner User    @relation(fields: [learnerId], references: [id], onDelete: Cascade)
@@ -578,4 +585,121 @@ model LearnerBadge {
   @@unique([learnerId, badgeType])
   @@index([tenantId])
   @@map("learner_badges")
+}
+
+/// Mirrors `MasteryState` from `mastery-formula.ts`, minus
+/// `not_started` — a `QuestStep`'s mastery gate names a concrete
+/// threshold to reach, and "not started" is never a valid threshold to
+/// require. Kept as its own Prisma enum (rather than reusing a shared
+/// type) because `MasteryState` itself is deliberately not a DB enum —
+/// no table stores a mastery state directly, it's always derived live
+/// from `MasteryEvidence` — whereas a step's required threshold IS
+/// literal, teacher-authored, persisted configuration.
+enum QuestMasteryThreshold {
+  beginning
+  developing
+  proficient
+  mastered
+}
+
+/// A teacher-owned, linear (non-branching) sequence of `QuestStep`s.
+/// No draft/publish lifecycle, unlike `Activity` — a created quest is
+/// immediately visible tenant-wide to every learner. Activities need
+/// draft/publish/immutability because grading integrity depends on
+/// pinned content; a reorderable, ungraded step list carries no such
+/// risk, so no parallel machinery is built for it here. Archived (not
+/// deleted), matching every other module.
+model Quest {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  teacherId   String    @map("teacher_id")
+  title       String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  archivedAt  DateTime? @map("archived_at")
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher     User              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  steps       QuestStep[]
+  completions QuestCompletion[]
+
+  @@index([tenantId])
+  @@index([teacherId])
+  @@map("quests")
+}
+
+/// One ordered step in a `Quest`. Gates on `activityId` (the learner
+/// must have a submitted `Attempt` for an assignment of this activity),
+/// `requiredConceptId` + `requiredMasteryState` (the learner's live
+/// mastery state for that concept must be at or above the threshold),
+/// or both combined with AND. At least one gate must be set — enforced
+/// at the service layer, not the database, since Prisma has no native
+/// "at least one of these columns is non-null" constraint; a step with
+/// neither would be vacuously always-complete, which is meaningless.
+///
+/// There is deliberately no stored "is this step complete for learner
+/// X" row anywhere: both gates are fully derivable from data that
+/// already exists (`Attempt`, `MasteryEvidence`), so completion is
+/// computed live on every read, mirroring `MasteryService`'s
+/// no-cached-value precedent. `activityId`/`requiredConceptId` are
+/// nullable, ordinary (not `onDelete: Cascade`-critical) references —
+/// archiving the referenced `Activity`/`Concept` does not archive the
+/// step; that reconciliation is a documented limitation, not built.
+model QuestStep {
+  id                   String                 @id @default(uuid())
+  tenantId             String                 @map("tenant_id")
+  questId              String                 @map("quest_id")
+  order                Int
+  activityId           String?                @map("activity_id")
+  requiredConceptId    String?                @map("required_concept_id")
+  requiredMasteryState QuestMasteryThreshold? @map("required_mastery_state")
+  createdAt            DateTime               @default(now()) @map("created_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quest    Quest     @relation(fields: [questId], references: [id], onDelete: Cascade)
+  activity Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  concept  Concept?  @relation(fields: [requiredConceptId], references: [id], onDelete: SetNull)
+
+  @@unique([questId, order])
+  @@index([questId])
+  @@index([tenantId])
+  @@map("quest_steps")
+}
+
+/// The reward event for completing every step of a `Quest`. Written
+/// exactly once per (quest, learner) — `@@unique([questId, learnerId])`
+/// is the structural idempotency guard, same pattern as `XpTransaction`
+/// / `LearnerBadge` / `MasteryEvidence`. Unlike `XpTransaction`
+/// (attempt-scoped, so only the single winning claim inside one
+/// attempt's `submit()` transaction can ever reach that insert — a
+/// unique violation there is fail-loud because it should be
+/// unreachable), a quest's last step can independently become
+/// satisfied by two DIFFERENT concurrent attempts/transactions (e.g.
+/// one completes the activity gate, a racing one pushes the mastery
+/// gate over threshold), so the insert here uses
+/// `createMany({ skipDuplicates: true })` — defense-in-depth, same
+/// posture as `LearnerBadge`, not fail-loud.
+///
+/// `xpAwarded` is tracked in its own ledger here, not merged into
+/// `XpTransaction`/`GamificationService`'s total XP/level number — a
+/// deliberate decision to keep Module 7's already-merged schema
+/// untouched and to keep quest-completion reward as its own surface
+/// (shown on the quest map), not blended into the attempt-earned XP
+/// bar.
+model QuestCompletion {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  questId   String   @map("quest_id")
+  learnerId String   @map("learner_id")
+  xpAwarded Int      @map("xp_awarded")
+  awardedAt DateTime @default(now()) @map("awarded_at")
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quest   Quest  @relation(fields: [questId], references: [id], onDelete: Cascade)
+  learner User   @relation("QuestCompletionLearner", fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@unique([questId, learnerId])
+  @@index([tenantId])
+  @@index([learnerId])
+  @@map("quest_completions")
 }
