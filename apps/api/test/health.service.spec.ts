@@ -30,7 +30,6 @@ describe("HealthService", () => {
     PORT: 4000,
     DATABASE_URL: "postgres://user:pass@localhost:5432/questlearn",
     REDIS_URL: "redis://localhost:6379",
-    SESSION_SECRET: "test-session-secret-value",
     CSRF_SECRET: "test-csrf-secret-value",
   };
 

@@ -38,7 +38,6 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgresql://questlearn:questlearn@localhost:5432/questlearn
       REDIS_URL: redis://localhost:6379
-      SESSION_SECRET: ci-session-secret-placeholder-value
       CSRF_SECRET: ci-csrf-secret-placeholder-value
       JWT_SECRET: ci-jwt-secret-placeholder-value
       # See .env.example: raised from 30 to 40 in Module 7. Module 8's

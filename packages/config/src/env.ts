@@ -23,9 +23,6 @@ export const envSchema = z.object({
     .min(1, "REDIS_URL is required")
     .url("REDIS_URL must be a valid connection URL"),
 
-  SESSION_SECRET: z
-    .string()
-    .min(16, "SESSION_SECRET must be at least 16 characters"),
   CSRF_SECRET: z
     .string()
     .min(16, "CSRF_SECRET must be at least 16 characters"),

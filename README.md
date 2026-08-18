@@ -64,7 +64,7 @@ for why this stack was chosen.
    ```
    The example values already match the Docker Compose services, so no
    edits are required for local development. Generate real random
-   values for `SESSION_SECRET` / `CSRF_SECRET` / `JWT_SECRET` before
+   values for `CSRF_SECRET` / `JWT_SECRET` before
    using this outside a local sandbox, e.g.:
    ```
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
