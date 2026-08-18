@@ -225,6 +225,11 @@ export default function ClassDetailPage() {
               Class mastery
             </Button>
           </Link>
+          <Link href={`/classes/${cls.id}/report`}>
+            <Button variant="secondary" size="sm">
+              Report
+            </Button>
+          </Link>
           <Button variant="ghost" size="sm" onClick={toggleArchive}>
             {cls.archivedAt ? "Un-archive" : "Archive"}
           </Button>

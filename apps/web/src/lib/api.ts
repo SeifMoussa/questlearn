@@ -683,3 +683,108 @@ export function removeQuestStep(accessToken: string, questId: string, stepId: st
 export function reorderQuestSteps(accessToken: string, questId: string, stepIds: string[]) {
   return authedRequest<QuestDetail>(accessToken, "PATCH", `/quests/${questId}/steps/reorder`, { stepIds });
 }
+
+// ---------------------------------------------------------------------------
+// Reporting (Module 9)
+// ---------------------------------------------------------------------------
+
+export interface AssignmentReportRow {
+  assignmentId: string;
+  title: string;
+  dueAt: string;
+  assignedCount: number;
+  submittedCount: number;
+  completionRate: number | null;
+  averageScore: number | null;
+}
+
+export interface ClassReportMasterySummary {
+  conceptId: string;
+  conceptName: string;
+  beginning: number;
+  developing: number;
+  proficient: number;
+  mastered: number;
+}
+
+export interface ClassReportLearnerRow {
+  rosterEntryId: string;
+  name: string;
+  learnerId: string | null;
+}
+
+export interface ClassReport {
+  classId: string;
+  className: string;
+  summary: { overallCompletionRate: number | null; overallAverageScore: number | null };
+  assignments: AssignmentReportRow[];
+  masterySummary: ClassReportMasterySummary[];
+  learners: ClassReportLearnerRow[];
+}
+
+export function getClassReport(accessToken: string, classId: string) {
+  return authedRequest<ClassReport>(accessToken, "GET", `/classes/${classId}/report`);
+}
+
+/**
+ * Returns the raw CSV text rather than triggering a download directly
+ * — the endpoint needs the Bearer token, so a plain `<a href>` can't
+ * reach it. Callers build a Blob and a temporary anchor client-side
+ * (see `/classes/[id]/report/page.tsx`).
+ */
+export async function getClassReportCsv(accessToken: string, classId: string): Promise<string> {
+  const res = await fetch(`${getApiUrl()}/classes/${classId}/report/csv`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    throw new ApiError("Could not download the CSV export.", res.status);
+  }
+  return res.text();
+}
+
+export interface ActivityReportQuestion {
+  activityQuestionId: string;
+  order: number;
+  prompt: string;
+  type: QuestionType;
+  points: number;
+  submittedResponseCount: number;
+  correctCount: number;
+  correctRate: number | null;
+  averagePointsAwarded: number | null;
+  hintViewedCount: number;
+  hintViewRate: number | null;
+}
+
+export interface ActivityReport {
+  activityId: string;
+  title: string;
+  status: ActivityStatus;
+  questions: ActivityReportQuestion[];
+}
+
+export function getActivityReport(accessToken: string, activityId: string) {
+  return authedRequest<ActivityReport>(accessToken, "GET", `/activities/${activityId}/report`);
+}
+
+export interface LearnerReportAttempt {
+  assignmentId: string;
+  activityTitle: string;
+  className: string;
+  dueAt: string;
+  status: AssignmentStatus;
+  score: number | null;
+  submittedAt: string | null;
+}
+
+export interface LearnerReport {
+  learner: { id: string; name: string; email: string };
+  attempts: LearnerReportAttempt[];
+  mastery: ConceptMastery[];
+  gamification: GamificationProfile;
+  quests: QuestListRow[];
+}
+
+export function getLearnerReport(accessToken: string, classId: string, learnerId: string) {
+  return authedRequest<LearnerReport>(accessToken, "GET", `/classes/${classId}/learners/${learnerId}/report`);
+}
