@@ -90,6 +90,26 @@ class CorrectAnswerForTypeConstraint implements ValidatorConstraintInterface {
 }
 
 /**
+ * Nothing else stops two options in the same payload sharing an id --
+ * `CorrectAnswerForTypeConstraint` only checks that `correctAnswer`
+ * refers to a *member* of `optionIds`, not that those ids are
+ * distinct, so a duplicate id would silently make one option
+ * unreachable as a correct answer while masquerading as valid.
+ */
+@ValidatorConstraint({ name: "uniqueOptionIds", async: false })
+class UniqueOptionIdsConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    if (!Array.isArray(value)) return true; // shape is covered by @IsArray/@ValidateNested
+    const ids = value.map((o) => (o as { id?: unknown })?.id).filter((id): id is string => typeof id === "string");
+    return new Set(ids).size === ids.length;
+  }
+
+  defaultMessage(): string {
+    return "Option ids must be unique within a question.";
+  }
+}
+
+/**
  * Shared shape for both create and edit. Every edit resubmits the
  * full question content (prompt, options, correctAnswer, etc.) and
  * always produces a brand-new `QuestionVersion` — there is no partial
@@ -126,6 +146,7 @@ export class QuestionPayloadDto {
   @ArrayMinSize(2, { message: "Choice questions need at least 2 options." })
   @ValidateNested({ each: true })
   @Type(() => QuestionOptionDto)
+  @Validate(UniqueOptionIdsConstraint)
   options?: QuestionOptionDto[];
 
   @Validate(CorrectAnswerForTypeConstraint)
