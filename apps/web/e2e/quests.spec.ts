@@ -9,14 +9,15 @@ const DEMO_LEARNER_EMAIL = "demo.learner@questlearn.dev";
 const DEMO_LEARNER_PASSWORD = "DemoLearner2026!";
 
 const uniqueSuffix = Date.now();
-// Fixed, readable name -- this quest is still created and built for
-// real through the UI below (proving the flow), it's just never the
-// source of the two required screenshots (see the dedicated
-// screenshot step further down), so a duplicate on a non-reset volume
-// is a harmless, readable extra card rather than a wall of
-// timestamped variants -- same convention established by
-// mastery.spec.ts's `conceptName`.
-const questTitle = "Playwright Quests Flow Quest";
+// Timestamped, unlike mastery.spec.ts's fixed `conceptName` -- this
+// quest is asserted against with a strict single-card filter further
+// down (`getByTestId("quest-map-card").filter({ hasText: questTitle
+// })`), which would hit a strict-mode violation against a duplicate
+// from an earlier run on a non-reset volume if the name weren't
+// unique. Still never the source of the two required screenshots (see
+// the dedicated screenshot step further down), so this is purely
+// about assertion correctness, not screenshot cleanliness.
+const questTitle = `Playwright Quests Flow Quest ${uniqueSuffix}`;
 
 const SEEDED_ACTIVITY_TITLE = "Published: Science & Math Fundamentals";
 const SEEDED_QUEST_TITLE = "Science & Math Explorer";
