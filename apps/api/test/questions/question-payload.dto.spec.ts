@@ -40,6 +40,19 @@ describe("CreateQuestionDto per-type validation", () => {
     expect(errors.some((e) => e.property === "correctAnswer")).toBe(true);
   });
 
+  it("rejects options with a duplicate id", async () => {
+    const errors = await errorsFor({
+      type: "single_choice",
+      prompt: "What is 2 + 2?",
+      options: [
+        { id: "a", text: "3" },
+        { id: "a", text: "4" },
+      ],
+      correctAnswer: "a",
+    });
+    expect(errors.some((e) => e.property === "options")).toBe(true);
+  });
+
   it("rejects single_choice with fewer than 2 options", async () => {
     const errors = await errorsFor({
       type: "single_choice",

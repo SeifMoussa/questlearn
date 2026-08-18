@@ -1,7 +1,16 @@
 import { NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { ClassesService } from "../../src/classes/classes.service";
 import { PrismaService } from "../../src/prisma/prisma.service";
 import { SecurityLogger } from "../../src/auth/security-logger.service";
+
+function joinCodeConflict(): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError("Unique constraint failed on the fields: (`join_code`)", {
+    code: "P2002",
+    clientVersion: "test",
+    meta: { target: ["join_code"] },
+  });
+}
 
 describe("ClassesService", () => {
   let service: ClassesService;
@@ -84,6 +93,37 @@ describe("ClassesService", () => {
 
       await expect(service.create(ctx, { name: "Collision Class" })).rejects.toThrow();
     });
+
+    it("retries with a freshly generated code if the WRITE itself loses a race on the join code (P2002)", async () => {
+      // The findUnique check is optimistic, not atomic -- both draws
+      // report the code as free, but the create() write only succeeds
+      // the second time, proving the retry is driven by the DB's own
+      // unique-constraint failure, not by the pre-check.
+      prisma.class.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+      prisma.class.create
+        .mockRejectedValueOnce(joinCodeConflict())
+        .mockImplementationOnce(async ({ data }) => ({ id: "class-1", ...data }));
+
+      const result = await service.create(ctx, { name: "Race Class" });
+
+      expect(prisma.class.create).toHaveBeenCalledTimes(2);
+      expect(result.joinCode).toEqual(expect.any(String));
+    });
+
+    it("does not retry a non-P2002 error from the write", async () => {
+      prisma.class.findUnique.mockResolvedValueOnce(null);
+      prisma.class.create.mockRejectedValueOnce(new Error("connection reset"));
+
+      await expect(service.create(ctx, { name: "Broken Class" })).rejects.toThrow("connection reset");
+      expect(prisma.class.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("gives up if the write keeps losing the race after repeated retries", async () => {
+      prisma.class.findUnique.mockResolvedValue(null);
+      prisma.class.create.mockRejectedValue(joinCodeConflict());
+
+      await expect(service.create(ctx, { name: "Unlucky Class" })).rejects.toThrow();
+    });
   });
 
   describe("findOne / ownership scoping", () => {
@@ -131,6 +171,20 @@ describe("ClassesService", () => {
 
       await expect(service.rotateJoinCode(ctx, "class-x")).rejects.toBeInstanceOf(NotFoundException);
       expect(prisma.class.update).not.toHaveBeenCalled();
+    });
+
+    it("retries with a fresh code if the rotate write loses the same race", async () => {
+      const existing = { id: "class-1", tenantId: "tenant-1", teacherId: "teacher-1", joinCode: "OLDCODE1" };
+      prisma.class.findFirst.mockResolvedValueOnce(existing);
+      prisma.class.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+      prisma.class.update
+        .mockRejectedValueOnce(joinCodeConflict())
+        .mockImplementationOnce(async ({ data }) => ({ ...existing, ...data }));
+
+      const result = await service.rotateJoinCode(ctx, "class-1");
+
+      expect(prisma.class.update).toHaveBeenCalledTimes(2);
+      expect(result.joinCode).not.toBe("OLDCODE1");
     });
   });
 

@@ -245,4 +245,38 @@ describe("activities lifecycle (integration)", () => {
     await request(app.getHttpServer()).post(`/activities/${empty.body.id}/publish`).set(auth()).expect(400);
     await prisma.activity.deleteMany({ where: { id: empty.body.id } });
   });
+
+  it("THE ATOMIC CLAIM PROOF: concurrent publish (Promise.all) transitions exactly once", async () => {
+    const draft = await request(app.getHttpServer()).post("/activities").set(auth()).send({ title: "Race quiz" }).expect(201);
+    const raceActivityId = draft.body.id;
+    await request(app.getHttpServer())
+      .post(`/activities/${raceActivityId}/questions`)
+      .set(auth())
+      .send({ questionId: questionIds[0] })
+      .expect(201);
+
+    const [r1, r2] = await Promise.all([
+      request(app.getHttpServer()).post(`/activities/${raceActivityId}/publish`).set(auth()),
+      request(app.getHttpServer()).post(`/activities/${raceActivityId}/publish`).set(auth()),
+    ]);
+
+    // Exactly one caller wins the claim; the other observes it as an
+    // already-published activity, same 400 a sequential re-publish gets.
+    const statuses = [r1.status, r2.status].sort();
+    expect(statuses).toEqual([200, 400]);
+
+    const winner = r1.status === 200 ? r1 : r2;
+    expect(winner.body.status).toBe("published");
+
+    const finalActivity = await prisma.activity.findUniqueOrThrow({ where: { id: raceActivityId } });
+    expect(finalActivity.status).toBe("published");
+
+    // The pin loop must have run exactly once too, not once per racer.
+    const rows = await prisma.activityQuestion.findMany({ where: { activityId: raceActivityId } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].pinnedVersionId).not.toBeNull();
+
+    await prisma.activityQuestion.deleteMany({ where: { activityId: raceActivityId } });
+    await prisma.activity.deleteMany({ where: { id: raceActivityId } });
+  });
 });

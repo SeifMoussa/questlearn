@@ -89,5 +89,25 @@ describe("report formula (unit)", () => {
       const csv = toCsv<Row>([{ name: "Avery Kim", score: 0.5 }], columns);
       expect(csv).toBe("Name,Score\r\nAvery Kim,0.5\r\n");
     });
+
+    describe("CSV formula injection (OWASP)", () => {
+      it.each(["=", "+", "-", "@"])(
+        "prefixes a value starting with %s with a leading single quote",
+        (trigger) => {
+          const csv = toCsv<Row>([{ name: `${trigger}SUM(A1:A9)`, score: 1 }], columns);
+          expect(csv).toBe(`Name,Score\r\n'${trigger}SUM(A1:A9),1\r\n`);
+        },
+      );
+
+      it("still applies quote/comma escaping on top of the formula-injection prefix", () => {
+        const csv = toCsv<Row>([{ name: "=SUM(A1:A9), uh oh", score: 1 }], columns);
+        expect(csv).toBe('Name,Score\r\n"\'=SUM(A1:A9), uh oh",1\r\n');
+      });
+
+      it("a value with the trigger character NOT in the leading position is untouched", () => {
+        const csv = toCsv<Row>([{ name: "Grade = A", score: 1 }], columns);
+        expect(csv).toBe("Name,Score\r\nGrade = A,1\r\n");
+      });
+    });
   });
 });

@@ -168,19 +168,47 @@ export class ClassesService {
     throw new Error("Could not generate a unique join code after several attempts.");
   }
 
+  /**
+   * `createUniqueJoinCode`'s `findUnique` check is optimistic, not
+   * atomic — a second concurrent request could win the exact same
+   * code in the window between that check and this write, which would
+   * otherwise surface as an unhandled P2002 on the column's unique
+   * constraint. Defense in depth: if the write itself reports that
+   * conflict, generate a fresh code and retry, same bounded attempt
+   * count as the check-then-generate loop above. Negligible in
+   * practice given the ~2^40 code keyspace, but the column IS
+   * globally unique, so retrying is the correct response rather than
+   * letting the request fail outright.
+   */
+  private async withUniqueJoinCodeRetry<T>(write: (joinCode: string) => Promise<T>): Promise<T> {
+    for (let attempt = 0; attempt < JOIN_CODE_MAX_ATTEMPTS; attempt++) {
+      const joinCode = await this.createUniqueJoinCode();
+      try {
+        return await write(joinCode);
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error("Could not create a unique join code after several attempts.");
+  }
+
   async create(ctx: TeacherContext, dto: CreateClassDto) {
-    const joinCode = await this.createUniqueJoinCode();
     const now = new Date();
 
-    const created = await this.prisma.class.create({
-      data: {
-        tenantId: ctx.tenantId,
-        teacherId: ctx.userId,
-        name: dto.name.trim(),
-        joinCode,
-        joinCodeExpiresAt: joinCodeExpiry(now),
-      },
-    });
+    const created = await this.withUniqueJoinCodeRetry((joinCode) =>
+      this.prisma.class.create({
+        data: {
+          tenantId: ctx.tenantId,
+          teacherId: ctx.userId,
+          name: dto.name.trim(),
+          joinCode,
+          joinCodeExpiresAt: joinCodeExpiry(now),
+        },
+      }),
+    );
 
     this.securityLogger.log("class_created", {
       classId: created.id,
@@ -258,12 +286,13 @@ export class ClassesService {
   async rotateJoinCode(ctx: TeacherContext, classId: string) {
     await this.findOwnedOrThrow(ctx, classId);
 
-    const joinCode = await this.createUniqueJoinCode();
-    const updated = await this.prisma.class.update({
-      where: { id: classId },
-      data: { joinCode, joinCodeExpiresAt: joinCodeExpiry() },
-      include: { roster: { where: { removedAt: null }, orderBy: { addedAt: "asc" } } },
-    });
+    const updated = await this.withUniqueJoinCodeRetry((joinCode) =>
+      this.prisma.class.update({
+        where: { id: classId },
+        data: { joinCode, joinCodeExpiresAt: joinCodeExpiry() },
+        include: { roster: { where: { removedAt: null }, orderBy: { addedAt: "asc" } } },
+      }),
+    );
 
     this.securityLogger.log("join_code_rotated", {
       classId: updated.id,

@@ -229,25 +229,44 @@ export class ActivitiesService {
   /**
    * The core correctness-critical transition. Rejects an empty
    * activity and rejects re-publishing (a one-time transition, never
-   * reversible — see module brief). Inside a single transaction, pins
-   * every ActivityQuestion row to its question's CURRENT
-   * currentVersionId at this exact moment, then flips the activity to
-   * published with publishedAt set. From then on, resolveContent()
-   * always prefers pinnedVersionId, so later edits to the underlying
+   * reversible — see module brief).
+   *
+   * The draft->published transition is claimed the same way
+   * `AttemptsService.submit()` claims in_progress->submitted: a
+   * conditional `updateMany` (`where: { status: "draft" }`) inside the
+   * transaction, not a read-then-check-then-write. A plain read of
+   * `activity.status` before the transaction (the previous shape) lets
+   * two concurrent publish requests both observe "draft" and both
+   * proceed to write, double-firing the security log and redundantly
+   * re-pinning; the conditional write makes only one caller able to
+   * flip the row, and every other caller — including this exact
+   * request racing itself — sees `count === 0` and gets the same 400
+   * a sequential re-publish would.
+   *
+   * The winner pins every ActivityQuestion row to its question's
+   * CURRENT currentVersionId at this exact moment, inside the same
+   * transaction as the claim. From then on, resolveContent() always
+   * prefers pinnedVersionId, so later edits to the underlying
    * questions (which always create new versions per Module 3) never
    * change what this activity shows.
    */
   async publish(ctx: TeacherContext, activityId: string) {
     const activity = await this.findOwnedOrThrow(ctx, activityId);
 
-    if (activity.status === "published") {
-      throw new BadRequestException("This activity has already been published.");
-    }
     if (activity.questions.length === 0) {
       throw new BadRequestException("Publish requires at least one question.");
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    const won = await this.prisma.$transaction(async (tx) => {
+      const claim = await tx.activity.updateMany({
+        where: { id: activity.id, status: "draft" },
+        data: { status: "published", publishedAt: new Date() },
+      });
+
+      if (claim.count === 0) {
+        return false;
+      }
+
       for (const aq of activity.questions) {
         const question = await tx.question.findUniqueOrThrow({ where: { id: aq.questionId } });
         await tx.activityQuestion.update({
@@ -256,11 +275,12 @@ export class ActivitiesService {
         });
       }
 
-      await tx.activity.update({
-        where: { id: activity.id },
-        data: { status: "published", publishedAt: new Date() },
-      });
+      return true;
     });
+
+    if (!won) {
+      throw new BadRequestException("This activity has already been published.");
+    }
 
     this.securityLogger.log("activity_published", {
       activityId: activity.id,

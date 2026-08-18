@@ -10,6 +10,7 @@ describe("ActivitiesService", () => {
     activity: {
       create: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
       findFirst: jest.Mock;
       findMany: jest.Mock;
     };
@@ -63,6 +64,7 @@ describe("ActivitiesService", () => {
       activity: {
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findFirst: jest.fn(),
         findMany: jest.fn(),
       },
@@ -87,13 +89,20 @@ describe("ActivitiesService", () => {
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
-    it("rejects re-publishing an already-published activity", async () => {
+    it("rejects re-publishing an already-published activity (claim lost inside the transaction)", async () => {
       const activity = draftActivity([{ id: "aq-1", order: 0, questionId: "q-1", pinnedVersionId: "v-1" }]);
       activity.status = "published";
       prisma.activity.findFirst.mockResolvedValueOnce(activity);
+      prisma.activity.updateMany.mockResolvedValueOnce({ count: 0 });
 
       await expect(service.publish(ctx, "activity-1")).rejects.toBeInstanceOf(BadRequestException);
-      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(prisma.activity.updateMany).toHaveBeenCalledWith({
+        where: { id: "activity-1", status: "draft" },
+        data: { status: "published", publishedAt: expect.any(Date) },
+      });
+      // A lost claim must never fall through to pinning.
+      expect(prisma.activityQuestion.update).not.toHaveBeenCalled();
     });
 
     it("pins every ActivityQuestion to its question's CURRENT currentVersionId inside one transaction", async () => {
@@ -111,6 +120,10 @@ describe("ActivitiesService", () => {
 
       await service.publish(ctx, "activity-1");
 
+      expect(prisma.activity.updateMany).toHaveBeenCalledWith({
+        where: { id: "activity-1", status: "draft" },
+        data: { status: "published", publishedAt: expect.any(Date) },
+      });
       expect(prisma.activityQuestion.update).toHaveBeenCalledWith({
         where: { id: "aq-1" },
         data: { pinnedVersionId: "q-1-live-version" },
@@ -119,10 +132,30 @@ describe("ActivitiesService", () => {
         where: { id: "aq-2" },
         data: { pinnedVersionId: "q-2-live-version" },
       });
-      expect(prisma.activity.update).toHaveBeenCalledWith({
-        where: { id: "activity-1" },
-        data: { status: "published", publishedAt: expect.any(Date) },
-      });
+    });
+
+    it("count === 0 (lost the claim): does not log activity_published", async () => {
+      const activity = draftActivity([{ id: "aq-1", order: 0, questionId: "q-1", pinnedVersionId: null }]);
+      prisma.activity.findFirst.mockResolvedValueOnce(activity);
+      prisma.activity.updateMany.mockResolvedValueOnce({ count: 0 });
+      const logSpy = jest.spyOn(service["securityLogger"], "log");
+
+      await expect(service.publish(ctx, "activity-1")).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it("count === 1 (won the claim): logs activity_published exactly once", async () => {
+      const activity = draftActivity([{ id: "aq-1", order: 0, questionId: "q-1", pinnedVersionId: null }]);
+      prisma.activity.findFirst.mockResolvedValueOnce(activity).mockResolvedValueOnce(draftActivity([]));
+      prisma.activity.updateMany.mockResolvedValueOnce({ count: 1 });
+      prisma.question.findUniqueOrThrow.mockResolvedValueOnce({ id: "q-1", currentVersionId: "q-1-live-version" });
+      const logSpy = jest.spyOn(service["securityLogger"], "log");
+
+      await service.publish(ctx, "activity-1");
+
+      expect(logSpy).toHaveBeenCalledTimes(1);
+      expect(logSpy).toHaveBeenCalledWith("activity_published", expect.any(Object));
     });
   });
 
