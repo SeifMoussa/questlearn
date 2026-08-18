@@ -56,6 +56,11 @@ function LearnerDashboard({ name, email, onLogout }: { name: string; email: stri
               XP & Achievements
             </Button>
           </Link>
+          <Link href="/quests/map">
+            <Button variant="secondary" size="md">
+              Quests
+            </Button>
+          </Link>
           <Link href="/join">
             <Button variant="secondary" size="md">
               Join another class
@@ -210,6 +215,11 @@ export default function DashboardPage() {
         <Link href="/concepts">
           <Button variant="secondary" size="md">
             Concepts
+          </Button>
+        </Link>
+        <Link href="/quests">
+          <Button variant="secondary" size="md">
+            Quests
           </Button>
         </Link>
       </div>
