@@ -76,7 +76,7 @@ export function isStepComplete(status: StepGateStatus): boolean {
 export function unlockedStepCount(stepCompletions: boolean[]): number {
   if (stepCompletions.length === 0) return 0;
 
-  let firstIncompleteIndex = stepCompletions.findIndex((complete) => !complete);
+  const firstIncompleteIndex = stepCompletions.findIndex((complete) => !complete);
   if (firstIncompleteIndex === -1) {
     return stepCompletions.length;
   }
