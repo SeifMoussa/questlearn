@@ -3,6 +3,7 @@ import { PrismaService } from "../../src/prisma/prisma.service";
 import { SecurityLogger } from "../../src/auth/security-logger.service";
 import { MasteryService } from "../../src/mastery/mastery.service";
 import { GamificationService } from "../../src/gamification/gamification.service";
+import { QuestsService } from "../../src/quests/quests.service";
 
 /**
  * Isolates the atomic claim pattern in `submit()` from a real database:
@@ -66,7 +67,14 @@ describe("AttemptsService.submit — claim pattern (unit)", () => {
     const securityLogger = { log: jest.fn() } as unknown as SecurityLogger;
     const masteryService = { recordEvidenceForAttempt: jest.fn().mockResolvedValue([]) } as unknown as MasteryService;
     const gamificationService = { awardForAttempt: jest.fn().mockResolvedValue(undefined) } as unknown as GamificationService;
-    const service = new AttemptsService(prisma as unknown as PrismaService, securityLogger, masteryService, gamificationService);
+    const questsService = { evaluateQuestProgressForAttempt: jest.fn().mockResolvedValue(undefined) } as unknown as QuestsService;
+    const service = new AttemptsService(
+      prisma as unknown as PrismaService,
+      securityLogger,
+      masteryService,
+      gamificationService,
+      questsService,
+    );
 
     // loadAttemptDetail (called at the end) re-fetches the attempt via
     // a plain findFirst outside the transaction.
@@ -91,7 +99,14 @@ describe("AttemptsService.submit — claim pattern (unit)", () => {
     const securityLogger = { log: jest.fn() } as unknown as SecurityLogger;
     const masteryService = { recordEvidenceForAttempt: jest.fn().mockResolvedValue([]) } as unknown as MasteryService;
     const gamificationService = { awardForAttempt: jest.fn().mockResolvedValue(undefined) } as unknown as GamificationService;
-    const service = new AttemptsService(prisma as unknown as PrismaService, securityLogger, masteryService, gamificationService);
+    const questsService = { evaluateQuestProgressForAttempt: jest.fn().mockResolvedValue(undefined) } as unknown as QuestsService;
+    const service = new AttemptsService(
+      prisma as unknown as PrismaService,
+      securityLogger,
+      masteryService,
+      gamificationService,
+      questsService,
+    );
 
     prisma.attempt.findFirst.mockResolvedValue(
       baseAttempt({ status: "submitted", submittedAt: new Date(), score: 0.75, responses: [], assignment: { activityId: "activity-1" } }),
