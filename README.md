@@ -16,12 +16,17 @@ The full product and engineering plan lives in
 
 ## Status
 
-**Module 0 — Foundation** (workspace, tooling, health checkpoint),
-**Module 1 — Authentication** (teacher registration, login, sessions),
-and **Module 2 — Classes** (class CRUD, join codes, roster management)
-are all in place. See [Module 1 — Authentication](#module-1--authentication)
-and [Module 2 — Classes](#module-2--classes) below for what each module
-covers.
+Modules 0 through 9 are all in place: foundation, authentication,
+classes, the question bank, activities, assignments and attempts,
+mastery, gamification, quests, and reporting — a teacher can build a
+class end to end (questions → concepts → activities → assignments →
+quests) and a learner can join, complete work, and see their XP,
+badges, mastery, and quest progress, all backed by real tests and
+screenshots. See each module's own section below (Module 1 —
+Authentication through Module 9 — Reporting and Administration) for
+what it covers. Module 10 (security/accessibility/production
+hardening) hasn't started yet; Module 11 (live sessions) is Phase 2,
+explicitly not required for MVP done per §20.
 
 ## Architecture
 
@@ -667,10 +672,12 @@ show populated content without a manual redemption step.
 
 **Known limitations:**
 
-- **No mastery/XP/gamification/quest hooks.** This module stops at
-  "score computed and stored on the `Attempt`" — no mastery
-  recalculation, XP ledger, badge rules, or quest progress, even
-  stubbed. That's Modules 6 through 9's job.
+- ~~No mastery/XP/gamification/quest hooks.~~ Resolved in Modules 6-8:
+  `AttemptsService.submit()`'s grading transaction now calls
+  `MasteryService.recordEvidenceForAttempt`,
+  `GamificationService.awardForAttempt`, and
+  `QuestsService.evaluateQuestProgressForAttempt` in that order,
+  matching the submission-pipeline ordering in Master Spec §10.
 - **Single-page player, not one-question-at-a-time** — see the
   architecture decision above.
 - **No teacher grade-override UI.** `Attempt.score` is
