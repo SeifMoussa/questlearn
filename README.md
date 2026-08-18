@@ -675,7 +675,11 @@ show populated content without a manual redemption step.
   architecture decision above.
 - **No teacher grade-override UI.** `Attempt.score` is
   system-computed only in this module; a teacher-facing override with
-  an audit trail (Master Spec §6/§12) is future work.
+  an audit trail (Master Spec §6/§12) is future work. Revisited and
+  reaffirmed, not just carried forward unexamined, in Module 9 — see
+  that section's architecture decisions for why the deferral has
+  gotten stronger, not weaker, as more idempotent-once subsystems
+  shipped in between.
 - **No CSV roster import for learners** — redemption is the only
   learner-enrollment path introduced this module; teacher-added
   placeholder rows from Module 2 still exist side by side.
@@ -1073,31 +1077,164 @@ mastery threshold) without hand-setting anything.
   scoped narrowly to Live Sessions), so these get the same "out of
   scope entirely" treatment as institution admin or guardian accounts.
 
+## Module 9 — Reporting and Administration
+
+Closes the real gap an earlier connectivity audit flagged: there was
+no teacher-facing view of attempt results anywhere in the product.
+Every number on every view here is derived, on every read, from data
+Modules 5–8 already made queryable — no new stored state, same
+discipline as Mastery, Gamification, and Quests.
+
+**What it adds:**
+
+- `GET /classes/:id/report` (teacher dashboard) — per-assignment
+  completion rate and average score, a compact per-concept mastery
+  state-count summary (linking to Module 6's full grid rather than
+  re-rendering it), and a roster list linking to each registered
+  learner's own report.
+- `GET /classes/:id/report/csv` — CSV export of that same per-
+  assignment table, generated synchronously in the request/response
+  cycle by a small hand-rolled RFC 4180-style encoder
+  (`report-formula.ts`'s `toCsv`) — no new dependency, no background
+  job.
+- `GET /activities/:id/report` (question analysis) — per-question
+  correct rate, average points awarded, and hint-view rate across
+  every submitted response to the activity, aggregated across every
+  class it's assigned to (analysis of the authored content, not one
+  class's usage of it).
+- `GET /classes/:classId/learners/:learnerId/report` (learner report)
+  — a teacher's full-picture view of one student: attempt history plus
+  `MasteryService.getMasteryForLearner`, `GamificationService.getProfile`,
+  and `QuestsService.findAllForLearner` composed almost entirely as-is.
+- Frontend: `/classes/[id]/report`, `/activities/[id]/report`, and
+  `/classes/[id]/learners/[learnerId]/report` — plain styled div rows
+  (no new design-system components needed), a "Download CSV" button
+  (fetch → Blob → client-side download, since the endpoint needs the
+  Bearer token a plain `<a href>` can't carry), linked from the class
+  detail page and the published-activity detail page.
+
+**Architecture decisions:**
+
+- **Every rate returns `null`, never `0`, when its denominator is
+  zero.** "No data yet" and "zero percent" are different facts;
+  collapsing them would misreport an untouched assignment as a 0%
+  completion rate instead of "nothing to report yet."
+- **`assignedCount` uses the class's CURRENT active roster size for
+  every assignment**, including older ones — a teacher reads
+  "assigned" as "how many of my enrolled students should have done
+  this," and no historical roster snapshot exists anywhere to
+  reconstruct (`RosterEntry.removedAt` only marks removal, not "as of
+  when"). Documented as a known limitation, not silently glossed over.
+- **The learner report's `classId` is authorization-only.** The URL
+  proves the teacher has a legitimate relationship to this learner (an
+  active roster entry in a class they own); the report CONTENT spans
+  every class this teacher teaches the learner in, not just that one
+  — a teacher reasonably wants the whole picture of a student they see
+  in multiple sections, and it's still fully tenant+teacher scoped
+  throughout.
+- **Live-computed, not a background export job — a scale call, not a
+  default.** A tenant here is one teacher's workspace: a handful of
+  classes, dozens of learners, a handful of assignments. These
+  aggregate queries are no heavier than what `MasteryService`/
+  `GamificationService` already compute live on every read, and §7's
+  NFR explicitly scopes production-scale load testing out of MVP. A
+  background job would solve a problem that doesn't exist at this data
+  volume and would break the "derive, don't duplicate" principle for
+  no benefit — flagged as a known limitation if that scale assumption
+  ever stops holding, not solved preemptively.
+- **FR#11 (notification records) and FR#12 (audit log) are both
+  explicitly deferred, not built.** Notifications have zero
+  infrastructure anywhere in 8 prior modules — no trigger call, no UI
+  hook — and aren't listed in §14's Module 9 screenshot row or §20's
+  Definition of Done; building them as a side effect of a *reporting*
+  module would be peer-feature scope creep. Audit log is structurally
+  tied to grade overrides, manual XP/badge changes, and permission
+  changes — none of which have any mutation path built, so a log with
+  nothing real to audit would itself violate the DoD's "no
+  placeholder/TODO code paths" rule. The real question underneath is
+  whether to finally build grade override: **no** — Modules 6–8
+  shipped XP/mastery/quest logic that is deliberately append-only and
+  idempotent-once, with no reversal path designed in anywhere
+  (`XpTransaction` has no adjustment concept, `LearnerBadge` is
+  award-once with no revoke, `QuestCompletion` the same). A real
+  override means deciding, for four previously-shipped and carefully-
+  reasoned subsystems, what "the grade changed after the fact" means
+  for already-recorded evidence/XP/badges/quest completions — a
+  correctness-critical redesign, not a reporting task, and a
+  genuinely *larger* deferral than Module 5's original one now that
+  three more subsystems depend on scores being immutable.
+
+**Test coverage:**
+
+- Jest unit tests for the formula in isolation
+  (`apps/api/test/reports/report-formula.spec.ts`): the null-not-zero
+  guard on every rate, and CSV escaping (commas, quotes, newlines).
+- Jest integration tests against real Postgres
+  (`apps/api/test/reports/reports.integration.spec.ts`) against a
+  controlled fixture (2 questions, a 4-entry roster: 2 real submitters,
+  1 learner who never starts, 1 teacher-added placeholder with no
+  account) so every number is independently hand-checkable rather than
+  just plausible: completion rate/average score against real submitted
+  scores, CSV headers/content/formatting, per-question correctness and
+  hint-view rate, learner report composition, the roster-membership
+  authorization boundary, and tenant isolation (404 not 403) on all
+  four endpoints.
+- **Playwright** (`apps/web/e2e/reports.spec.ts`) — unlike every prior
+  module's spec file, this one creates nothing: every view is a direct
+  read of the seeded demo teacher's real data, so navigating straight
+  to the seeded class/activity/learner pages IS the real flow, plus a
+  real CSV download intercepted and its header row verified. Produced
+  the three screenshots below.
+
+**Screenshots** (`docs/screenshots/09-reporting-admin/`):
+
+- [`teacher-dashboard.png`](./docs/screenshots/09-reporting-admin/teacher-dashboard.png)
+- [`question-analysis.png`](./docs/screenshots/09-reporting-admin/question-analysis.png)
+- [`learner-report.png`](./docs/screenshots/09-reporting-admin/learner-report.png)
+
+**Known limitations:**
+
+- **Notification records (FR#11) are not built** — see the
+  architecture decision above; no trigger infrastructure exists
+  anywhere in the app yet.
+- **Audit log (FR#12) is not built**, and neither is teacher-facing
+  grade override — see the architecture decision above for the full
+  reasoning. Both remain future work, deliberately deferred rather
+  than built hollow.
+- **CSV export covers the class dashboard's assignment table only** —
+  question analysis and the learner report are UI/JSON-only for now;
+  a reasonable follow-up, not built preemptively.
+- **`assignedCount` has no historical roster snapshot** — see the
+  architecture decision above; an older assignment's "assigned" count
+  reflects who's enrolled today, not who was enrolled when it was due.
+
 ## Testing
 
 - **Jest** — unit tests for both apps (health service, auth service,
   classes service, questions service, activities service, assignments
   scoring, attempt submit-claim logic, the mastery formula, the
-  gamification formula, the quest gate/formula logic, question DTO
-  validation, join-code generation, a render smoke test for the status
-  page) plus real-Postgres integration tests for the auth session
-  lifecycle, classes lifecycle, questions lifecycle and versioning,
-  activities lifecycle and publish-immutability, the full
-  assignments/attempts lifecycle (including the idempotency and
-  frozen-content proofs), the mastery evidence/query lifecycle
-  (including its own idempotency proof and a recency-decay test), the
-  gamification award lifecycle (including its own idempotency proof),
-  the quest CRUD/gating/reward lifecycle (including its own
-  concurrency proof — a structurally different race than XpTransaction's,
-  see Module 8 above), tenant isolation (auth, classes, questions,
-  activities, assignments, concepts, mastery, and quests), and rate
-  limiting (auth and join-code redemption).
+  gamification formula, the quest gate/formula logic, the reporting
+  formula, question DTO validation, join-code generation, a render
+  smoke test for the status page) plus real-Postgres integration tests
+  for the auth session lifecycle, classes lifecycle, questions
+  lifecycle and versioning, activities lifecycle and publish-
+  immutability, the full assignments/attempts lifecycle (including the
+  idempotency and frozen-content proofs), the mastery evidence/query
+  lifecycle (including its own idempotency proof and a recency-decay
+  test), the gamification award lifecycle (including its own
+  idempotency proof), the quest CRUD/gating/reward lifecycle
+  (including its own concurrency proof — a structurally different race
+  than XpTransaction's, see Module 8 above), the four report endpoints
+  against a hand-checkable fixture (see Module 9 above), tenant
+  isolation (auth, classes, questions, activities, assignments,
+  concepts, mastery, quests, and reports), and rate limiting (auth and
+  join-code redemption).
 - **Playwright** (`apps/web/e2e/`) drives the real auth, class
   management, question bank, activity-builder,
   assignment/attempt/result, concept-tagging/mastery,
-  gamification/XP, and quest-building/quest-map flows through a real
-  browser against the real running app — see Module 1 through Module 8
-  above.
+  gamification/XP, quest-building/quest-map, and reporting flows
+  through a real browser against the real running app — see Module 1
+  through Module 9 above.
 
 ## Known limitations
 
