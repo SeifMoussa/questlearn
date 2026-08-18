@@ -41,6 +41,17 @@ export interface CsvColumn<T> {
 }
 
 /**
+ * A leading `=`, `+`, `-`, or `@` makes Excel/Google Sheets read a
+ * field as a live formula instead of plain text when the file is
+ * opened — the OWASP-documented "CSV injection" class of bug. A
+ * leading single quote is the standard mitigation: every major
+ * spreadsheet application treats it as "force this cell to text,"
+ * stripping the quote from what's displayed while leaving the rest of
+ * the value untouched.
+ */
+const FORMULA_TRIGGER_CHARS = new Set(["=", "+", "-", "@"]);
+
+/**
  * RFC 4180-style CSV encoding: a field is quoted (with internal quotes
  * doubled) only when it contains a comma, quote, or newline — anything
  * simpler is left bare, matching how a spreadsheet application writes
@@ -49,7 +60,14 @@ export interface CsvColumn<T> {
  */
 export function toCsv<T>(rows: T[], columns: CsvColumn<T>[]): string {
   const escape = (raw: string | number): string => {
-    const value = String(raw);
+    let value = String(raw);
+    // Applied before quote/comma/newline escaping so a value that
+    // needs both protections (e.g. `=SUM(A1:A9),uh oh`) gets them in
+    // the right order -- the quoting below still wraps the now-safe,
+    // apostrophe-prefixed value if it also contains a delimiter.
+    if (FORMULA_TRIGGER_CHARS.has(value[0])) {
+      value = `'${value}`;
+    }
     if (/["\n\r,]/.test(value)) {
       return `"${value.replace(/"/g, '""')}"`;
     }
