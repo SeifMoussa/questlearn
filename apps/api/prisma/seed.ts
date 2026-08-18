@@ -73,6 +73,7 @@ async function main(): Promise<void> {
     if (learner) {
       await seedDemoAssignmentAndAttempt(prisma, user.tenantId, user.id, learner);
     }
+    await seedDemoQuest(prisma, user.tenantId, user.id);
   } finally {
     await prisma.$disconnect();
   }
@@ -588,6 +589,64 @@ async function seedDemoAssignmentAndAttempt(
     `Seeded demo assignment (${publishedActivity.title} -> ${homeroom.name}) and one submitted attempt (score ${Math.round(score * 100)}%).`,
   );
   console.log("Recorded mastery evidence and gamification XP/badges via the real grading-time recording path.");
+}
+
+/**
+ * A 2-step demo quest for the Module 8 checkpoint (§14: quest builder
+ * + learner quest map). Deliberately references the SAME published
+ * activity and "Number Theory" concept the demo learner's seeded
+ * attempt (`seedDemoAssignmentAndAttempt`) already answered — that
+ * attempt answered the Number Theory question wrong, so this quest's
+ * two steps land in genuinely different, screenshot-worthy states:
+ * step 1 (activity completion) already complete, step 2 (mastery
+ * threshold) unlocked but not yet met. Nothing is hand-set here —
+ * both states are live-computed the same way a real learner's
+ * progress would be, off the mastery evidence and attempt the earlier
+ * seed steps already recorded through the real grading-time paths.
+ * Idempotent on whether the demo teacher already has any quest.
+ */
+async function seedDemoQuest(prisma: PrismaClient, tenantId: string, teacherId: string): Promise<void> {
+  const existingQuests = await prisma.quest.count({ where: { tenantId, teacherId } });
+  if (existingQuests > 0) {
+    console.log("Demo quest already exists; skipping.");
+    return;
+  }
+
+  const publishedActivity = await prisma.activity.findFirst({
+    where: { tenantId, teacherId, status: "published" },
+  });
+  const numberTheory = await prisma.concept.findFirst({
+    where: { tenantId, teacherId, name: "Number Theory" },
+  });
+
+  if (!publishedActivity || !numberTheory) {
+    console.log("Missing prerequisite demo activity/concept; skipping demo quest.");
+    return;
+  }
+
+  const quest = await prisma.quest.create({
+    data: {
+      tenantId,
+      teacherId,
+      title: "Science & Math Explorer",
+      description: "Complete the fundamentals quiz, then sharpen your number theory skills.",
+    },
+  });
+
+  await prisma.questStep.createMany({
+    data: [
+      { tenantId, questId: quest.id, order: 1, activityId: publishedActivity.id },
+      {
+        tenantId,
+        questId: quest.id,
+        order: 2,
+        requiredConceptId: numberTheory.id,
+        requiredMasteryState: "proficient",
+      },
+    ],
+  });
+
+  console.log(`Seeded demo quest: ${quest.title} (2 steps).`);
 }
 
 main().catch((error) => {

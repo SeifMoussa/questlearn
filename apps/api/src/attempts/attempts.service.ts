@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { SecurityLogger } from "../auth/security-logger.service";
 import { MasteryService } from "../mastery/mastery.service";
 import { GamificationService } from "../gamification/gamification.service";
+import { QuestsService } from "../quests/quests.service";
 import { scoreQuestion, overallScore } from "./scoring";
 import { AutosaveResponseDto } from "./dto/autosave-response.dto";
 
@@ -23,6 +24,7 @@ export class AttemptsService {
     private readonly securityLogger: SecurityLogger,
     private readonly masteryService: MasteryService,
     private readonly gamificationService: GamificationService,
+    private readonly questsService: QuestsService,
   ) {}
 
   /**
@@ -355,6 +357,20 @@ export class AttemptsService {
         tx,
         { tenantId: ctx.tenantId, learnerId: ctx.userId },
         { attemptId: attempt.id, totalAwardedPoints, score, touchedConceptIds },
+      );
+
+      // Quest progress evaluation (Module 8) happens right after
+      // gamification, still inside this same grading transaction, per
+      // the submission pipeline (Master Spec §10): "...-> XP
+      // transaction created -> badge rules evaluated -> quest
+      // progress evaluated -> notification queued -> response
+      // returned." Only quests referencing this attempt's activity or
+      // one of touchedConceptIds are re-checked, not every tenant
+      // quest.
+      await this.questsService.evaluateQuestProgressForAttempt(
+        tx,
+        { tenantId: ctx.tenantId, userId: ctx.userId },
+        { activityId: assignment.activityId, touchedConceptIds },
       );
 
       return true;

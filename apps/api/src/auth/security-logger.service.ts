@@ -32,7 +32,14 @@ export type SecurityEvent =
   | "attempt_submitted"
   | "concept_created"
   | "concept_archived"
-  | "question_concepts_updated";
+  | "question_concepts_updated"
+  | "quest_created"
+  | "quest_updated"
+  | "quest_archived"
+  | "quest_step_added"
+  | "quest_step_updated"
+  | "quest_step_removed"
+  | "quest_reordered";
 
 /**
  * Structured, append-only logging for auth events. Deliberately never

@@ -3,11 +3,12 @@ import { JwtModule } from "@nestjs/jwt";
 import { AuthModule } from "../auth/auth.module";
 import { MasteryModule } from "../mastery/mastery.module";
 import { GamificationModule } from "../gamification/gamification.module";
+import { QuestsModule } from "../quests/quests.module";
 import { AttemptsController } from "./attempts.controller";
 import { AttemptsService } from "./attempts.service";
 
 @Module({
-  imports: [JwtModule.register({}), AuthModule, MasteryModule, GamificationModule],
+  imports: [JwtModule.register({}), AuthModule, MasteryModule, GamificationModule, QuestsModule],
   controllers: [AttemptsController],
   providers: [AttemptsService],
 })

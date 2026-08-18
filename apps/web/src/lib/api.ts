@@ -563,3 +563,123 @@ export interface GamificationProfile {
 export function getGamificationProfile(accessToken: string) {
   return authedRequest<GamificationProfile>(accessToken, "GET", "/gamification/profile");
 }
+
+// ---------------------------------------------------------------------------
+// Quests (Module 8)
+// ---------------------------------------------------------------------------
+
+/** Excludes `not_started` — a step's required threshold is never "not started". */
+export type QuestMasteryThreshold = "beginning" | "developing" | "proficient" | "mastered";
+
+export interface QuestStepConfig {
+  id: string;
+  order: number;
+  activityId: string | null;
+  activityTitle: string | null;
+  requiredConceptId: string | null;
+  conceptName: string | null;
+  requiredMasteryState: QuestMasteryThreshold | null;
+}
+
+export interface QuestDetail {
+  id: string;
+  title: string;
+  description: string | null;
+  createdAt: string;
+  archivedAt: string | null;
+  steps: QuestStepConfig[];
+}
+
+export interface QuestSummary {
+  id: string;
+  title: string;
+  description: string | null;
+  createdAt: string;
+  archivedAt: string | null;
+  stepCount: number;
+}
+
+export interface QuestListRow {
+  id: string;
+  title: string;
+  description: string | null;
+  totalSteps: number;
+  unlockedStepCount: number;
+  complete: boolean;
+  xpAwarded: number | null;
+}
+
+export interface QuestProgressStep {
+  id: string;
+  order: number;
+  activityId: string | null;
+  activityTitle: string | null;
+  requiredConceptId: string | null;
+  conceptName: string | null;
+  requiredMasteryState: QuestMasteryThreshold | null;
+  complete: boolean;
+  unlocked: boolean;
+}
+
+export interface QuestProgress {
+  id: string;
+  title: string;
+  description: string | null;
+  complete: boolean;
+  xpAwarded: number | null;
+  steps: QuestProgressStep[];
+}
+
+/** Teacher list — the caller's own quests. Learner callers should use `getMyQuests` instead. */
+export function listQuests(accessToken: string) {
+  return authedRequest<QuestSummary[]>(accessToken, "GET", "/quests");
+}
+
+/** Learner list — every non-archived quest in the tenant, with live progress. */
+export function getMyQuests(accessToken: string) {
+  return authedRequest<QuestListRow[]>(accessToken, "GET", "/quests");
+}
+
+/** Teacher detail — step configuration. Learner callers should use `getQuestProgress` instead. */
+export function getQuest(accessToken: string, id: string) {
+  return authedRequest<QuestDetail>(accessToken, "GET", `/quests/${id}`);
+}
+
+/** Learner detail — live per-step complete/unlocked flags and reward state. */
+export function getQuestProgress(accessToken: string, id: string) {
+  return authedRequest<QuestProgress>(accessToken, "GET", `/quests/${id}`);
+}
+
+export function createQuest(accessToken: string, params: { title: string; description?: string }) {
+  return authedRequest<QuestDetail>(accessToken, "POST", "/quests", params);
+}
+
+export function updateQuest(accessToken: string, id: string, params: { title: string; description?: string }) {
+  return authedRequest<QuestDetail>(accessToken, "PATCH", `/quests/${id}`, params);
+}
+
+export function archiveQuest(accessToken: string, id: string) {
+  return authedRequest<QuestDetail>(accessToken, "DELETE", `/quests/${id}`);
+}
+
+export interface QuestStepGateParams {
+  activityId?: string;
+  requiredConceptId?: string;
+  requiredMasteryState?: QuestMasteryThreshold;
+}
+
+export function addQuestStep(accessToken: string, questId: string, params: QuestStepGateParams) {
+  return authedRequest<QuestDetail>(accessToken, "POST", `/quests/${questId}/steps`, params);
+}
+
+export function updateQuestStep(accessToken: string, questId: string, stepId: string, params: QuestStepGateParams) {
+  return authedRequest<QuestDetail>(accessToken, "PATCH", `/quests/${questId}/steps/${stepId}`, params);
+}
+
+export function removeQuestStep(accessToken: string, questId: string, stepId: string) {
+  return authedRequest<QuestDetail>(accessToken, "DELETE", `/quests/${questId}/steps/${stepId}`);
+}
+
+export function reorderQuestSteps(accessToken: string, questId: string, stepIds: string[]) {
+  return authedRequest<QuestDetail>(accessToken, "PATCH", `/quests/${questId}/steps/reorder`, { stepIds });
+}
