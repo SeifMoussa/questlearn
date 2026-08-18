@@ -825,30 +825,279 @@ reseed like every other seed step.
   teachers.** Two teachers each create their own "Fractions" concept
   independently; there's no shared taxonomy or cross-tenant concept
   library.
-- **No mastery-driven UI elsewhere yet** — quest gating on mastery
-  thresholds (Master Spec §6.9) is Module 8's job; this module only
-  builds the evidence pipeline and the two read surfaces.
+- ~~No mastery-driven UI elsewhere yet.~~ Resolved in Module 8: a
+  `QuestStep` can gate on a mastery threshold, read live off this
+  module's evidence via `MasteryService.getMasteryForLearner`/
+  `getMasteryForLearnerInTx`.
+
+## Module 7 — Gamification
+
+Every graded attempt now also awards XP and evaluates badge rules,
+still deliberately separate from grades and mastery — its own
+append-only ledger, its own award-once badge table, never blended into
+`Attempt.score` or `MasteryEvidence`.
+
+**What it adds:**
+
+- `XpTransaction` — append-only, `attemptId` unique so idempotency is a
+  structural guarantee rather than a defensive check: only the winning
+  claim inside `AttemptsService.submit()`'s existing grading
+  transaction can ever reach the insert, so a unique violation there
+  would mean that invariant broke, and is left to fail loudly rather
+  than be silently swallowed.
+- `LearnerBadge` — award-once per `(learnerId, badgeType)`, five fixed
+  `BadgeType`s (`quest_starter`, `perfect_score`, `concept_champion`,
+  `persistent_learner`, `rising_star`), inserted via
+  `createMany({ skipDuplicates: true })` as defense in depth on top of
+  the unique constraint.
+- `GamificationService.awardForAttempt` — called from inside
+  `submit()`'s grading transaction, right after mastery evidence is
+  recorded, per the master spec's submission-pipeline ordering. Reuses
+  `touchedConceptIds` straight from the mastery call rather than a
+  second `QuestionConcept` lookup, and calls
+  `MasteryService.getMasteryForLearnerInTx` (not the plain,
+  committed-only read) so a concept that reaches "mastered" from
+  evidence recorded earlier in this SAME transaction is visible for
+  the `concept_champion` check without a second round trip after
+  commit.
+- `GET /gamification/profile` (learner) — total XP, level progress,
+  and every earned badge, live-aggregated from `XpTransaction`/
+  `LearnerBadge` on every read; no stored "current level" field
+  anywhere.
+- Frontend: `/xp` (`StatCard` for total XP/level, `ProgressBar` for
+  level progress, a fixed 5-badge achievements grid that always
+  renders all five, earned or not, so the layout stays legible for a
+  learner with zero badges).
+
+**Architecture decisions:**
+
+- **The formula**
+  (`apps/api/src/gamification/gamification-formula.ts`), named
+  constants rather than inline numbers:
+
+  ```
+  xp(attempt) = 20 + round(totalAwardedPoints × 10)
+  xpRequiredForLevel(level) = 50 × level × (level − 1)
+  ```
+
+  A quadratic level curve (level 2 costs 100 XP, level 3 another 200,
+  level 4 another 300, ...) without a lookup table; XP exactly on a
+  threshold counts as having reached that level.
+- **"Current level" is never stored, only derived** — the only stored
+  facts are `XpTransaction` rows; level/progress is computed live from
+  `sum(amount)` on every read, mirroring `MasteryService`'s
+  no-cached-value precedent from Module 6.
+- **Badge rules read already-committed-this-transaction state, not a
+  second query round trip.** `concept_champion` specifically needs to
+  know "did a concept touched by THIS attempt just become mastered,"
+  which requires reading the mastery evidence this same transaction
+  already inserted before it commits — exactly why
+  `getMasteryForLearnerInTx` exists.
+- **No security-logger events for XP/badge awards.** Every other
+  mutating action in the app logs a `SecurityEvent`; gamification
+  awards are a byproduct of `attempt_submitted` (already logged) and
+  don't carry a distinct security-relevant action of their own, so no
+  new event types were added for this module — a deliberate omission,
+  not an oversight.
+
+**Test coverage:**
+
+- Jest unit tests for the formula in isolation
+  (`apps/api/test/gamification/gamification-formula.spec.ts`):
+  completion-XP flat award, point-scaled award with rounding on
+  fractional points, and the level-threshold table for levels 1–6.
+- Jest integration tests against real Postgres
+  (`apps/api/test/gamification/gamification.integration.spec.ts`).
+  **THE IDEMPOTENCY PROOF** drives the real HTTP surface: a concurrent
+  duplicate submit (`Promise.all`) creates exactly one `XpTransaction`
+  row and no duplicate badges; a second, separately-perfect attempt for
+  the same learner doesn't duplicate the award-once `perfect_score`
+  badge.
+- **Playwright** (`apps/web/e2e/gamification.spec.ts`): the demo
+  teacher assigns the seeded published activity to a fresh class → a
+  learner joins, completes it, and submits → their `/xp` page reflects
+  the XP award and the `quest_starter` badge. Screenshots captured from
+  the seeded demo learner's own separately-earned profile, not the
+  spec's own throwaway class/learner.
+
+**Demo data:**
+
+`pnpm db:seed` routes the seeded demo attempt through the real
+`GamificationService.awardForAttempt` path (not a hand-rolled
+duplicate), so the demo learner's `/xp` page shows genuine XP and a
+real `quest_starter` badge from their one seeded submitted attempt.
+
+**Screenshots** (`docs/screenshots/07-gamification/`):
+
+- [`xp-profile.png`](./docs/screenshots/07-gamification/xp-profile.png)
+- [`level-progress.png`](./docs/screenshots/07-gamification/level-progress.png)
+- [`achievements.png`](./docs/screenshots/07-gamification/achievements.png)
+
+**Known limitations:**
+
+- **No badge for quest completion yet** — `LearnerBadge`'s five
+  `BadgeType`s are all attempt/mastery-driven; Module 8 tracks its own
+  completion reward in a separate `QuestCompletion` table rather than
+  adding a sixth shared badge type (see Module 8 below for why).
+- **XP/level curve constants are fixed**, not teacher-configurable —
+  reasonable for an MVP portfolio project, but a real deployment might
+  want per-tenant tuning.
+
+## Module 8 — Quests
+
+Quest steps chain together everything Modules 4–7 built: a step gates
+on completing an `Activity`, reaching a mastery threshold on a
+`Concept`, or both — linear, non-branching progression, ending in a
+single, idempotent reward when every step is satisfied.
+
+**What it adds:**
+
+- `Quest`/`QuestStep`/`QuestCompletion` schema. A step references an
+  `Activity`, a `Concept` + required mastery state, or both (AND, not
+  OR — no separate operator field; which of the two nullable
+  references the teacher populated IS the configuration). At least one
+  gate is required, enforced at the service layer since it spans
+  multiple optional columns.
+- Teacher CRUD: `POST/GET/PATCH/DELETE /quests`, step
+  add/edit/remove/reorder under `/quests/:id/steps`. No draft/publish
+  lifecycle like `Activity` — a created quest is immediately visible
+  tenant-wide, since a reorderable, ungraded step list carries none of
+  the grading-integrity risk that justifies `Activity`'s
+  draft→published→immutable machinery.
+- Learner reads: `GET /quests` (tenant-wide list with live progress)
+  and `GET /quests/:id` (per-step complete/unlocked flags), both fully
+  derived from existing `Attempt`/`MasteryEvidence` data — no stored
+  per-learner-per-step state anywhere.
+- `QuestsService.evaluateQuestProgressForAttempt`, called from inside
+  `AttemptsService.submit()`'s grading transaction right after
+  gamification's award, per the master spec's submission-pipeline
+  ordering. Only quests referencing the just-graded attempt's activity
+  or touched concepts are re-checked, not every tenant quest.
+- Frontend: `/quests` + `/quests/new` + `/quests/[id]` (teacher
+  builder — activity/concept pickers resolved by name, matching the
+  established assignment-form select pattern) and `/quests/map`
+  (learner — the design system's existing `QuestStepper` component,
+  locked/active/completed derived from the API's live progress).
+
+**Architecture decisions:**
+
+- **No stored step-completion or unlock-cursor state, by the same
+  reasoning as Mastery (Module 6) and Gamification (Module 7).** A
+  step's gates are both fully derivable from data that already exists;
+  the ONLY new per-learner fact that can't be derived — because it's a
+  one-time event, not a query result — is "was the reward already
+  issued," which is exactly what `QuestCompletion` exists for and
+  nothing else does.
+- **The unlock cursor is a display concept only, not enforcement.**
+  `Attempt`/`Assignment` have zero coupling to `Quest` in the data
+  model — assignments are class-wide, quest progress is per-learner —
+  so nothing can actually block a learner from satisfying a later
+  step's raw condition before an earlier one (e.g. via a separately
+  assigned activity). Quest completion is therefore "every step's gate
+  holds," independent of the order in which they became true; the
+  unlock cursor only controls what the quest MAP shows as active vs.
+  locked.
+- **`QuestCompletion` is its own reward ledger, deliberately not
+  merged into Module 7's `XpTransaction`.** Quest XP is tracked and
+  displayed on the quest map itself, not blended into `/xp`'s total —
+  keeps quest-completion reward as its own surface and leaves Module
+  7's already-shipped schema untouched.
+- **`QuestCompletion`'s idempotency is defense-in-depth
+  (`skipDuplicates`), not fail-loud like `XpTransaction`'s — a
+  deliberate, reasoned difference, not an inconsistency.**
+  `XpTransaction`'s uniqueness can safely be fail-loud because only the
+  single winning claim inside ONE attempt's `submit()` transaction can
+  ever reach that insert. A quest's last step has no such guarantee: it
+  can be satisfied by TWO DIFFERENT attempts' own evidence,
+  independently, in two genuinely separate transactions that can't see
+  each other's uncommitted writes — a real, expected race, not a broken
+  invariant.
+
+**Test coverage:**
+
+- Jest unit tests for the pure gate/formula logic in isolation
+  (`apps/api/test/quests/quest-formula.spec.ts`): activity-only,
+  mastery-only, and combined (AND) step completion; the unlock-cursor
+  walk; the XP formula.
+- Jest integration tests against real Postgres
+  (`apps/api/test/quests/quests.integration.spec.ts`): gate validation
+  (neither gate / mismatched mastery gate / draft-activity gate all
+  rejected), tenant isolation (404, not 403), and a full 3-step gating
+  flow (activity-only → mastery-only → combined) driven entirely by
+  real `Attempt` submissions and mastery evidence, proving the unlock
+  cursor and reward fire at exactly the right moments.
+- **THE CONCURRENCY PROOF**
+  (`apps/api/test/quests/quests-concurrency.integration.spec.ts`)
+  proves the DIFFERENT race `QuestCompletion` actually faces (see
+  above): two concurrent, independently-sufficient attempts (separate
+  transactions, each with its own evidence enough alone to reach
+  "mastered") race to complete the same quest; exactly one
+  `QuestCompletion` survives, confirmed stable across repeated runs.
+- **Playwright** (`apps/web/e2e/quests.spec.ts`): the demo teacher
+  builds a quest with a step gated on the seeded published activity
+  through the real UI — since the demo learner already has a submitted
+  attempt for that activity, the step reads as complete immediately,
+  proving gate evaluation reuses existing data live rather than
+  requiring a fresh submission for this specific quest instance.
+  Screenshots captured from the seeded "Science & Math Explorer" quest
+  and the seeded demo learner's map from the first commit, not fixed up
+  afterward.
+
+**Demo data:**
+
+`pnpm db:seed` adds a 2-step "Science & Math Explorer" quest reusing
+the same published activity and "Number Theory" concept the demo
+learner's seeded attempt already touched (and answered the Number
+Theory question wrong on) — so the two steps land in genuinely
+different states (one already complete, one unlocked but short of the
+mastery threshold) without hand-setting anything.
+
+**Screenshots** (`docs/screenshots/08-quests/`):
+
+- [`quest-builder.png`](./docs/screenshots/08-quests/quest-builder.png)
+- [`learner-quest-map.png`](./docs/screenshots/08-quests/learner-quest-map.png)
+
+**Known limitations:**
+
+- **Quests are tenant-wide, not per-class assigned** — unlike
+  `Activity`'s `Assignment` model, there's no `QuestAssignment`
+  concept; every learner in the tenant sees every non-archived quest.
+- **No draft/publish lifecycle for quests** — a created quest is
+  immediately live; see the architecture decision above for why this
+  doesn't carry the same risk `Activity` guards against.
+- **The unlock cursor doesn't gate `Attempt` creation** — see the
+  architecture decision above; a learner can technically satisfy a
+  later step before an earlier one.
+- **Team-based quests and streaks are not built** — not mentioned
+  anywhere in the master spec (not even on the Phase 2 list, which is
+  scoped narrowly to Live Sessions), so these get the same "out of
+  scope entirely" treatment as institution admin or guardian accounts.
 
 ## Testing
 
 - **Jest** — unit tests for both apps (health service, auth service,
   classes service, questions service, activities service, assignments
-  scoring, attempt submit-claim logic, the mastery formula, question
-  DTO validation, join-code generation, a render smoke test for the
-  status page) plus real-Postgres integration tests for the auth
-  session lifecycle, classes lifecycle, questions lifecycle and
-  versioning, activities lifecycle and publish-immutability, the full
+  scoring, attempt submit-claim logic, the mastery formula, the
+  gamification formula, the quest gate/formula logic, question DTO
+  validation, join-code generation, a render smoke test for the status
+  page) plus real-Postgres integration tests for the auth session
+  lifecycle, classes lifecycle, questions lifecycle and versioning,
+  activities lifecycle and publish-immutability, the full
   assignments/attempts lifecycle (including the idempotency and
   frozen-content proofs), the mastery evidence/query lifecycle
-  (including its own idempotency proof and a recency-decay test),
-  tenant isolation (auth, classes, questions, activities, assignments,
-  concepts, and mastery), and rate limiting (auth and join-code
-  redemption).
+  (including its own idempotency proof and a recency-decay test), the
+  gamification award lifecycle (including its own idempotency proof),
+  the quest CRUD/gating/reward lifecycle (including its own
+  concurrency proof — a structurally different race than XpTransaction's,
+  see Module 8 above), tenant isolation (auth, classes, questions,
+  activities, assignments, concepts, mastery, and quests), and rate
+  limiting (auth and join-code redemption).
 - **Playwright** (`apps/web/e2e/`) drives the real auth, class
   management, question bank, activity-builder,
-  assignment/attempt/result, and concept-tagging/mastery flows through
-  a real browser against the real running app — see Module 1 through
-  Module 6 above.
+  assignment/attempt/result, concept-tagging/mastery,
+  gamification/XP, and quest-building/quest-map flows through a real
+  browser against the real running app — see Module 1 through Module 8
+  above.
 
 ## Known limitations
 
