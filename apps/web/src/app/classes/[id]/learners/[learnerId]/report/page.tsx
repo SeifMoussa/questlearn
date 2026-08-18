@@ -223,7 +223,9 @@ export default function LearnerReportPage() {
             >
               <span style={{ fontSize: 13, color: "var(--text-primary)" }}>{q.title}</span>
               <Badge tone={q.complete ? "onTrack" : "neutral"}>
-                {q.complete ? `Complete — +${q.xpAwarded} XP` : `${q.unlockedStepCount}/${q.totalSteps} unlocked`}
+                {q.complete
+                  ? `Complete${q.xpAwarded !== null ? ` — +${q.xpAwarded} XP` : ""}`
+                  : `${q.unlockedStepCount}/${q.totalSteps} unlocked`}
               </Badge>
             </div>
           ))}
