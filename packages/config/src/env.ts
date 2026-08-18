@@ -23,9 +23,6 @@ export const envSchema = z.object({
     .min(1, "REDIS_URL is required")
     .url("REDIS_URL must be a valid connection URL"),
 
-  SESSION_SECRET: z
-    .string()
-    .min(16, "SESSION_SECRET must be at least 16 characters"),
   CSRF_SECRET: z
     .string()
     .min(16, "CSRF_SECRET must be at least 16 characters"),
@@ -42,6 +39,16 @@ export const envSchema = z.object({
   // out a real 60-second production window.
   AUTH_THROTTLE_LIMIT: z.coerce.number().int().positive().default(5),
   AUTH_THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
+
+  // App-wide default rate limit (every endpoint without its own
+  // @Throttle override, notably /auth/refresh and every plain GET
+  // read). The 100/60s default matches production's original,
+  // untouched value; dev/test raise it via .env/.env.example/CI the
+  // same way AUTH_THROTTLE_LIMIT is raised, so a growing Playwright
+  // suite's page-load/API-call volume doesn't trip it, without
+  // loosening the limit anyone actually deployed relies on.
+  GLOBAL_THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
+  GLOBAL_THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -65,19 +65,31 @@ describe("gamification awards (integration)", () => {
   });
 
   afterAll(async () => {
-    const cls = await prisma.class.findUniqueOrThrow({ where: { id: classId } });
-    await prisma.xpTransaction.deleteMany({ where: { tenantId: cls.tenantId } });
-    await prisma.learnerBadge.deleteMany({ where: { tenantId: cls.tenantId } });
-    await prisma.attemptResponse.deleteMany({ where: { attempt: { assignment: { classId } } } });
-    await prisma.attempt.deleteMany({ where: { assignment: { classId } } });
-    await prisma.assignment.deleteMany({ where: { classId } });
-    await prisma.activityQuestion.deleteMany({ where: { tenantId: cls.tenantId } });
-    await prisma.activity.deleteMany({ where: { teacherId: cls.teacherId } });
-    await prisma.questionVersion.deleteMany({ where: { questionId } });
-    await prisma.question.deleteMany({ where: { id: questionId } });
-    await prisma.rosterEntry.deleteMany({ where: { classId } });
-    await prisma.class.deleteMany({ where: { id: classId } });
-    await prisma.user.deleteMany({ where: { tenantId: cls.tenantId } });
+    // See the classes/activities tenant-isolation specs for why every
+    // deleteMany below is guarded on the id it depends on actually
+    // being set — an unguarded call with an undefined filter value
+    // matches (and deletes) every row in the table, not just this
+    // test's own data. Previously relied on `findUniqueOrThrow`
+    // throwing first as an implicit guard if `classId` was ever unset
+    // (e.g. beforeAll failing partway through); made explicit to match
+    // every other Module 6/8/9 integration spec's convention.
+    if (classId) {
+      const cls = await prisma.class.findUniqueOrThrow({ where: { id: classId } });
+      await prisma.xpTransaction.deleteMany({ where: { tenantId: cls.tenantId } });
+      await prisma.learnerBadge.deleteMany({ where: { tenantId: cls.tenantId } });
+      await prisma.attemptResponse.deleteMany({ where: { attempt: { assignment: { classId } } } });
+      await prisma.attempt.deleteMany({ where: { assignment: { classId } } });
+      await prisma.assignment.deleteMany({ where: { classId } });
+      await prisma.activityQuestion.deleteMany({ where: { tenantId: cls.tenantId } });
+      await prisma.activity.deleteMany({ where: { teacherId: cls.teacherId } });
+      await prisma.rosterEntry.deleteMany({ where: { classId } });
+      await prisma.class.deleteMany({ where: { id: classId } });
+      await prisma.user.deleteMany({ where: { tenantId: cls.tenantId } });
+    }
+    if (questionId) {
+      await prisma.questionVersion.deleteMany({ where: { questionId } });
+      await prisma.question.deleteMany({ where: { id: questionId } });
+    }
     await app.close();
   });
 

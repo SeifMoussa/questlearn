@@ -39,6 +39,18 @@ test.describe.serial("reports browser journey: class dashboard -> question analy
     await login(page);
   });
 
+  test("teacher reaches a class's report via the dashboard's Reports link and the /reports landing page", async ({ page }) => {
+    await page.goto("/dashboard");
+    await page.getByRole("link", { name: /^reports$/i }).click();
+    await expect(page).toHaveURL(/\/reports$/);
+
+    const card = page.getByTestId("reports-class-card").filter({ hasText: SEEDED_CLASS_NAME });
+    await expect(card).toBeVisible();
+    await card.click();
+    await expect(page).toHaveURL(/\/classes\/[0-9a-f-]+\/report$/);
+    await expect(page.getByTestId("report-summary")).toBeVisible();
+  });
+
   test("teacher opens the seeded class's report from the class detail page", async ({ page }) => {
     await page.goto("/classes");
     await page.getByTestId("class-card").filter({ hasText: SEEDED_CLASS_NAME }).click();

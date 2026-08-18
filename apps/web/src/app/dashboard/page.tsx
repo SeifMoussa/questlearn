@@ -191,7 +191,6 @@ export default function DashboardPage() {
       </div>
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 24 }}>
-        <StatCard label="Quests" value="0" />
         <StatCard label="Students" value="0" />
         <StatCard label="Mastery" value="—" />
       </div>
@@ -222,12 +221,18 @@ export default function DashboardPage() {
             Quests
           </Button>
         </Link>
+        <Link href="/reports">
+          <Button variant="secondary" size="md">
+            Reports
+          </Button>
+        </Link>
       </div>
 
       <p style={{ marginTop: 32, color: "var(--text-secondary)", fontSize: 14, maxWidth: 480 }}>
-        Quests and analytics land in a later module. Classes, the question
-        bank, and activities are managed on their own pages — assign a
-        published activity to a class from that activity&apos;s page.
+        Classes, the question bank, activities, concepts, and quests are
+        managed on their own pages — assign a published activity to a class
+        from that activity&apos;s page. Question analysis is reached from a
+        published activity&apos;s detail page.
       </p>
     </main>
   );
