@@ -7,10 +7,18 @@ export interface SwitchProps {
 
 export function Switch({ checked = false, onChange, label, description }: SwitchProps) {
   return (
-    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
-      <span
+    <span style={{ display: 'flex', alignItems: 'flex-start', gap: 12, fontFamily: 'var(--font-ui)' }}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label ?? 'Toggle'}
         onClick={() => onChange && onChange(!checked)}
         style={{
+          appearance: 'none',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
           width: 40,
           height: 22,
           borderRadius: 'var(--radius-pill)',
@@ -33,13 +41,13 @@ export function Switch({ checked = false, onChange, label, description }: Switch
             boxShadow: '0 1px 2px rgba(0,0,0,.2)',
           }}
         />
-      </span>
+      </button>
       {(label || description) && (
         <span>
           {label ? <div style={{ fontSize: 14, fontWeight: 'var(--fw-medium)', color: 'var(--text-primary)' }}>{label}</div> : null}
           {description ? <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{description}</div> : null}
         </span>
       )}
-    </label>
+    </span>
   );
 }

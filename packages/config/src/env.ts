@@ -31,7 +31,16 @@ export const envSchema = z.object({
     .min(16, "JWT_SECRET must be at least 16 characters"),
 
   API_URL: z.string().url().optional(),
-  WEB_URL: z.string().url().optional(),
+  // Required, not optional: main.ts's CORS config falls back to
+  // `origin: true` (reflect any origin) when this is unset, which is
+  // safe only because every configured environment (.env, .env.example,
+  // ci.yml) already sets it -- but an unconfigured deployment would
+  // silently go permissive rather than fail. Making it required turns
+  // that into a fail-fast startup error instead.
+  WEB_URL: z
+    .string()
+    .min(1, "WEB_URL is required")
+    .url("WEB_URL must be a valid connection URL"),
 
   // Rate limit applied to the sensitive, unauthenticated endpoints:
   // register/login/forgot-password and join-code redemption.

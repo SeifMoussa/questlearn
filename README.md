@@ -16,17 +16,18 @@ The full product and engineering plan lives in
 
 ## Status
 
-Modules 0 through 9 are all in place: foundation, authentication,
+Modules 0 through 10 are all in place: foundation, authentication,
 classes, the question bank, activities, assignments and attempts,
-mastery, gamification, quests, and reporting — a teacher can build a
-class end to end (questions → concepts → activities → assignments →
-quests) and a learner can join, complete work, and see their XP,
-badges, mastery, and quest progress, all backed by real tests and
-screenshots. See each module's own section below (Module 1 —
-Authentication through Module 9 — Reporting and Administration) for
-what it covers. Module 10 (security/accessibility/production
-hardening) hasn't started yet; Module 11 (live sessions) is Phase 2,
-explicitly not required for MVP done per §20.
+mastery, gamification, quests, reporting, and a security/
+accessibility/production-hardening pass — a teacher can build a class
+end to end (questions → concepts → activities → assignments → quests)
+and a learner can join, complete work, and see their XP, badges,
+mastery, and quest progress, all backed by real tests and screenshots.
+See each module's own section below (Module 1 — Authentication through
+Module 10 — Hardening) for what it covers. Module 10 adds no new UI
+per §14's checklist — it's a pass over the 9 modules' existing screens.
+**The MVP (Modules 0–10) is feature-complete.** Module 11 (live
+sessions) is Phase 2, only built after the pilot checkpoint per §20.
 
 ## Architecture
 
@@ -85,6 +86,18 @@ for why this stack was chosen.
    ```
    pnpm test
    ```
+9. **(Optional) Build and run the production Docker images**, from the
+   repo root (the build context, since both apps depend on workspace
+   packages):
+   ```
+   docker build -f apps/api/Dockerfile -t questlearn-api .
+   docker build -f apps/web/Dockerfile --build-arg NEXT_PUBLIC_API_URL=http://localhost:4000 -t questlearn-web .
+   docker run --network questlearn_default -e DATABASE_URL=... -e REDIS_URL=... -e CSRF_SECRET=... -e JWT_SECRET=... -e WEB_URL=... -p 4000:4000 questlearn-api
+   docker run --network questlearn_default -p 3000:3000 questlearn-web
+   ```
+   `NEXT_PUBLIC_API_URL` is a build arg, not a runtime env var — it's
+   inlined into the client bundle at build time, so it has to be set
+   before building, not when running the container.
 
 ## System status checkpoint
 
@@ -1215,6 +1228,82 @@ discipline as Mastery, Gamification, and Quests.
   architecture decision above; an older assignment's "assigned" count
   reflects who's enrolled today, not who was enrolled when it was due.
 
+## Module 10 — Security, Accessibility, and Production Hardening
+
+No new UI per §14's checklist ("no new UI — security/a11y/perf pass on
+existing screens") — this module is a hardening pass over the 9
+modules already built, starting from a concrete, evidence-based
+checklist rather than a blank slate. Full detail lives in
+[`SECURITY_NOTES.md`](./SECURITY_NOTES.md) and
+[`TESTING_REPORT.md`](./TESTING_REPORT.md), both new in this module
+(required by §20's Definition of Done, and both genuinely absent
+before now); this section is the summary.
+
+**What it adds:**
+
+- **Dependency remediation**: `pnpm audit --prod` went from 44
+  vulnerabilities (19 high) to 1 — the pinned `next@14.2.35` accounted
+  for 17 findings, resolved by a full Next.js 14→15 (+ React 18→19)
+  upgrade in its own isolated commit; the rest (`multer`, `js-yaml`,
+  `lodash`, `qs`, `file-type`, `postcss`, `nanoid`, `sharp`,
+  `body-parser`, `deepmerge-ts`) were all transitive leaves, closed via
+  `pnpm.overrides`. The single remaining finding
+  (`@nestjs/core`, moderate) is deliberately deferred, not missed —
+  see `SECURITY_NOTES.md` for the specific advisory and reasoning.
+- **Security headers**: `helmet` on the API with a fully closed CSP
+  (nothing inherited from helmet's defaults), a separately relaxed
+  policy scoped to Swagger UI's own path, and matching headers +
+  a real CSP on the Next.js app — the actual browser-facing surface,
+  where the `fonts.gstatic.com` allowance for the design system's
+  self-hosted fonts actually matters.
+- **Accessibility**: a real, deliberate `:focus-visible` outline on
+  every text input (`Input.tsx` had suppressed it with no
+  replacement — [before](./docs/screenshots/10-hardening/focus-indicator-before.png)
+  / [after](./docs/screenshots/10-hardening/focus-indicator-after.png),
+  not spec-required per §14 but captured as evidence anyway), two more
+  keyboard-operability bugs found and fixed while auditing the rest of
+  the design system (`Switch`, `Tag`), and three contrast failures
+  fixed with values computed via the actual WCAG formula (`Badge`'s
+  status tones, `--text-secondary`) — not eyeballed, not assumed
+  passing.
+- **Production Dockerfiles**: `apps/api/Dockerfile` and
+  `apps/web/Dockerfile` — neither existed before this module (only
+  local Postgres/Redis infra had a Compose file). Verified end-to-end
+  as real containers on the real docker-compose network, not just a
+  successful `docker build`.
+- **CORS hardening**: `WEB_URL` is now a required env var; the
+  permissive `origin: true` fallback for an unset value is gone.
+
+**Test coverage:** every fix in this module was verified individually
+before being committed — a real browser session for every CSS/header
+change (computed styles, console CSP-violation checks, not just
+"the build passed"), the full 269-test Jest suite and 48-test
+Playwright suite re-run after each change that could plausibly affect
+them, and both Docker images proven with a real login flow through
+containerized instances of both apps. Full detail, including the
+fresh-environment final verification pass, in `TESTING_REPORT.md`.
+
+**Known limitations:**
+
+- **`@nestjs/core`'s one remaining moderate CVE is deliberately
+  deferred** — a NestJS v10→v11 migration's breaking-change surface
+  (Express v5's route matching, reversed lifecycle-hook order,
+  `Reflector` API changes) doesn't belong bundled into the same module
+  as a Next.js major bump. See `SECURITY_NOTES.md`.
+- **The API's Docker image ships devDependencies** — the runtime
+  stage copies the build stage's full `node_modules` rather than a
+  scoped prod-only install, because the workspace's root `postinstall`
+  script fires regardless of `--prod` and has no `tsc` to run without
+  devDependencies present. Larger image than strictly necessary; a
+  documented tradeoff for build reliability, not an unnoticed gap.
+- **`Switch`'s unchecked-track color** measures ~1.44:1 against the
+  page background, short of the 3:1 non-text contrast guideline —
+  not fixed here since `Switch` isn't wired into any live page yet.
+- **No automated accessibility test suite or dedicated SAST/DAST
+  tool** — this module's a11y and security-scan work were manual
+  audits, not new automated regression coverage. Reasonable follow-up
+  work, not required for this module's scope.
+
 ## Testing
 
 - **Jest** — unit tests for both apps (health service, auth service,
@@ -1241,7 +1330,14 @@ discipline as Mastery, Gamification, and Quests.
   assignment/attempt/result, concept-tagging/mastery,
   gamification/XP, quest-building/quest-map, and reporting flows
   through a real browser against the real running app — see Module 1
-  through Module 9 above.
+  through Module 9 above. Module 10 adds no new flow (no new UI to
+  test) but re-runs all 48 tests against the production build with
+  Module 10's security headers/CSP active, confirming they don't break
+  any existing journey.
+- **Docker**: `apps/api/Dockerfile` and `apps/web/Dockerfile`, both
+  verified as real running containers on the docker-compose network
+  with a real login flow through the browser — see Module 10 above and
+  `TESTING_REPORT.md`.
 
 ## Known limitations
 

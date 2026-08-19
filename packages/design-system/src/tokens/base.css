@@ -5,3 +5,9 @@ a{color:var(--brand-primary);text-decoration:none}
 a:hover{color:var(--brand-primary-hover);text-decoration:underline}
 h1,h2,h3,h4,p{margin:0}
 button{font-family:inherit}
+
+/* WCAG 2.4.7 Focus Visible: a deliberate replacement outline, not just
+   the suppressed default -- :focus-visible so it shows for keyboard
+   navigation without adding a ring on every mouse click. */
+.qs-input{outline:none}
+.qs-input:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}

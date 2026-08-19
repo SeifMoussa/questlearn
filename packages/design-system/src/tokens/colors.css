@@ -26,7 +26,13 @@
 --border-strong:var(--gray-300);
 
 --text-primary:var(--gray-900);
---text-secondary:var(--gray-500);
+/* gray-500 itself (#7B7797) only reaches 4.26:1 on white and 3.92:1
+   on the page background -- both fail WCAG AA's 4.5:1 for normal-size
+   text. This alias is darkened just enough to clear 4.5:1 against
+   both surfaces (5.44:1 / 5.01:1) without touching gray-500 itself,
+   which is also used for non-text purposes (borders, icons) where
+   the text contrast requirement doesn't apply. */
+--text-secondary:#6A6686;
 --text-inverse:var(--gray-0);
 --text-on-sidebar:#C9C4E8;
 --text-on-sidebar-active:var(--gray-0);
@@ -42,7 +48,13 @@
 --accent-reward:var(--amber-500);
 --accent-danger:var(--red-500);
 
---status-on-track-bg:var(--green-50);--status-on-track-fg:var(--green-600);
---status-needs-support-bg:var(--amber-50);--status-needs-support-fg:var(--amber-600);
---status-at-risk-bg:var(--red-50);--status-at-risk-fg:var(--red-600);
+/* fg values below are darkened from green-600/amber-600/red-600
+   specifically for badge text: those three fail WCAG AA (3.07:1,
+   2.80:1, 4.23:1) against their paired -50 backgrounds at the 12px
+   text size Badge renders at. Scoped to these status-*-fg tokens only
+   -- green-600/amber-600/red-600 themselves are unchanged for their
+   other, non-text uses elsewhere. */
+--status-on-track-bg:var(--green-50);--status-on-track-fg:#157B3C;
+--status-needs-support-bg:var(--amber-50);--status-needs-support-fg:#9F530B;
+--status-at-risk-bg:var(--red-50);--status-at-risk-fg:#B91C1C;
 }

@@ -1,9 +1,34 @@
 packages:
   - "apps/*"
   - "packages/*"
+# Forces patched versions of packages that are transitive dependencies
+# of @nestjs/* (multer, js-yaml, lodash, qs, file-type, body-parser),
+# prisma's own tooling (deepmerge-ts), or next's own bundled build/
+# image tooling (postcss, nanoid, sharp) up to the version each
+# advisory was fixed in, without waiting on those parent packages to
+# bump their own dependency ranges. Each stays within its current
+# major version — a same-major patch/minor bump of a leaf transitive
+# dependency, not an API surface we call directly — except
+# deepmerge-ts (only consumer is prisma's CLI tooling, not the runtime
+# request path) and sharp (only pulled in as next's optional
+# next/image dependency, which this app doesn't use — grepped for
+# `next/image`/`<Image`, zero hits).
+# See SECURITY_NOTES.md for the advisories this closes.
+overrides:
+  multer: ">=2.2.0"
+  js-yaml: ">=4.3.1 <5"
+  lodash: ">=4.17.24 <5"
+  qs: ">=6.15.2 <7"
+  file-type: ">=21.3.2 <22"
+  body-parser: ">=1.20.6 <2"
+  deepmerge-ts: ">=8.0.0"
+  postcss: ">=8.5.23 <9"
+  nanoid: ">=3.3.18 <4"
+  sharp: ">=0.35.0"
 allowBuilds:
   '@nestjs/core': true
   '@prisma/engines': true
   argon2: true
   prisma: true
+  sharp: true
   unrs-resolver: true
