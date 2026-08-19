@@ -1,6 +1,23 @@
 packages:
   - "apps/*"
   - "packages/*"
+# Forces patched versions of packages that are transitive dependencies
+# of @nestjs/* (multer, js-yaml, lodash, qs, file-type, body-parser) or
+# prisma's own tooling (deepmerge-ts) up to the version each advisory
+# was fixed in, without waiting on those parent packages to bump their
+# own dependency ranges. Each stays within its current major version —
+# a same-major patch/minor bump of a leaf transitive dependency, not an
+# API surface we call directly — except deepmerge-ts, whose only
+# consumer is prisma's CLI tooling, not the runtime request path.
+# See SECURITY_NOTES.md for the advisories this closes.
+overrides:
+  multer: ">=2.2.0"
+  js-yaml: ">=4.3.1 <5"
+  lodash: ">=4.17.24 <5"
+  qs: ">=6.15.2 <7"
+  file-type: ">=21.3.2 <22"
+  body-parser: ">=1.20.6 <2"
+  deepmerge-ts: ">=8.0.0"
 allowBuilds:
   '@nestjs/core': true
   '@prisma/engines': true
