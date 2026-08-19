@@ -21,7 +21,7 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: env.WEB_URL ?? true,
+    origin: env.WEB_URL,
     credentials: true,
   });
 
