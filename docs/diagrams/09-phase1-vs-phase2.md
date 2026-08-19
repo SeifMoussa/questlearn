@@ -6,34 +6,7 @@ Sessions) has not been started — no tables, gateways, or APIs for it
 exist anywhere in the codebase (confirmed by grep: no WebSocket
 gateway, no session-PIN model, no `socket.io`/`ws` dependency).
 
-```mermaid
-graph LR
-    subgraph Phase1["Phase 1 — MVP (Modules 0–10, built)"]
-        direction TB
-        P1a["Auth: register, verify,<br/>login, JWT + refresh, CSRF"]
-        P1b["Classes: join codes, roster"]
-        P1c["Question bank: versioned"]
-        P1d["Activities: draft → publish<br/>(immutable, pinned content)"]
-        P1e["Assignments & attempts:<br/>async, autosaved, idempotent submit"]
-        P1f["Mastery: live-computed,<br/>recency-weighted"]
-        P1g["Gamification: XP, levels, badges"]
-        P1h["Quests: linear, gated steps"]
-        P1i["Reporting: dashboards, CSV"]
-        P1j["Hardening: headers, CSP,<br/>a11y, Docker images"]
-    end
-
-    subgraph Phase2["Phase 2 — Module 11, Live Sessions (deferred, not started)"]
-        direction TB
-        P2a["WebSocket gateway"]
-        P2b["Session PINs + host lobby"]
-        P2c["Reconnection handling"]
-        P2d["Real-time scoring"]
-        P2e["Host controls"]
-        P2f["Redis pub/sub for<br/>horizontal socket scaling"]
-    end
-
-    Phase1 -.->|"async, request/response —<br/>the model Phase 2 must not<br/>break, only add alongside"| Phase2
-```
+![Phase 1 vs. Phase 2 boundary](./09-phase1-vs-phase2.svg)
 
 **Why Phase 2 waits:** live/synchronous sessions are a genuinely
 different complexity class — stateful rooms, reconnection, duplicate
