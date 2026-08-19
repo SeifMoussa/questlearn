@@ -1,0 +1,141 @@
+<svg viewBox="0 0 1300 1150" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    .subtitle { fill: #5c5878; font-size: 12px; text-anchor: middle; }
+    .panelhdr { fill: #1e1c38; font-size: 16px; font-weight: 700; }
+    .personlabel { fill: #ffffff; font-size: 14px; font-weight: 700; text-anchor: middle; }
+    .persontype { fill: #dfe6fb; font-size: 9.5px; text-anchor: middle; }
+    .personsub { fill: #eef0fb; font-size: 9.5px; text-anchor: middle; }
+    .syslabel { fill: #ffffff; font-size: 15px; font-weight: 700; text-anchor: middle; }
+    .systype { fill: #d9e0fb; font-size: 10px; text-anchor: middle; }
+    .syssub { fill: #eef0fb; font-size: 10px; text-anchor: middle; }
+    .arrowlabel { fill: #454263; font-size: 10.5px; text-anchor: middle; }
+    .note { fill: #5c5878; font-size: 11.5px; }
+    .notetitle { fill: #b91c1c; font-size: 12.5px; font-weight: 700; }
+    .boundarylabel { fill: #3f30c4; font-size: 12px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="a14" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#454263"/></marker>
+    <marker id="a14r" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#dc2626"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1300" height="1150" fill="#ffffff"/>
+
+  <text x="650" y="26" class="title">C4 Model — Context &amp; Containers</text>
+  <text x="650" y="45" class="subtitle">Two actors, one system, no external systems — no real email provider, payment processor, or third-party identity provider</text>
+
+  <!-- ===== Panel A: System Context ===== -->
+  <text x="60" y="78" class="panelhdr">Level 1 — System Context</text>
+  <line x1="60" y1="86" x2="1240" y2="86" stroke="#c9c6de" stroke-width="1"/>
+
+  <!-- Teacher person -->
+  <rect x="80" y="100" width="230" height="104" rx="8" fill="#3357c9"/>
+  <g stroke="#ffffff" stroke-width="1.8" fill="none"><circle cx="105" cy="122" r="9"/><path d="M92,145 q13,-14 26,0"/></g>
+  <text x="205" y="128" class="personlabel">Teacher</text>
+  <text x="205" y="145" class="persontype">[Person]</text>
+  <text x="205" y="163" class="personsub">Builds classes, question banks,</text>
+  <text x="205" y="177" class="personsub">activities, and quests; assigns</text>
+  <text x="205" y="191" class="personsub">work; reviews reports</text>
+
+  <!-- Learner person -->
+  <rect x="990" y="100" width="230" height="104" rx="8" fill="#3357c9"/>
+  <g stroke="#ffffff" stroke-width="1.8" fill="none"><circle cx="1015" cy="122" r="9"/><path d="M1002,145 q13,-14 26,0"/></g>
+  <text x="1115" y="128" class="personlabel">Learner</text>
+  <text x="1115" y="145" class="persontype">[Person]</text>
+  <text x="1115" y="163" class="personsub">Joins a class, completes</text>
+  <text x="1115" y="177" class="personsub">assigned work, tracks</text>
+  <text x="1115" y="191" class="personsub">XP / badges / mastery</text>
+
+  <!-- QuestLearn system -->
+  <rect x="470" y="264" width="360" height="118" rx="8" fill="#1e1c38"/>
+  <text x="650" y="292" class="syslabel">QuestLearn</text>
+  <text x="650" y="309" class="systype">[Software System]</text>
+  <text x="650" y="330" class="syssub">Async, request/response educational</text>
+  <text x="650" y="345" class="syssub">gamification platform — quiz → grade →</text>
+  <text x="650" y="360" class="syssub">mastery → reward, server-side, idempotent</text>
+
+  <path d="M225,204 C300,240 400,255 480,300" fill="none" stroke="#454263" stroke-width="1.5" marker-end="url(#a14)"/>
+  <text x="330" y="240" class="arrowlabel">Manages content and</text>
+  <text x="330" y="253" class="arrowlabel">assignments, views reports</text>
+  <text x="330" y="266" class="arrowlabel" font-style="italic">[HTTPS]</text>
+
+  <path d="M1105,204 C1030,240 930,255 820,300" fill="none" stroke="#454263" stroke-width="1.5" marker-end="url(#a14)"/>
+  <text x="975" y="240" class="arrowlabel">Joins, attempts, submits,</text>
+  <text x="975" y="253" class="arrowlabel">views progress</text>
+  <text x="975" y="266" class="arrowlabel" font-style="italic">[HTTPS]</text>
+
+  <rect x="80" y="410" width="1140" height="60" rx="8" fill="#fdecec" stroke="#dc2626" stroke-width="1.4"/>
+  <text x="98" y="430" class="notetitle">No external systems</text>
+  <text x="98" y="448" class="note">No real email provider (DevEmailService logs verification/reset tokens to the server log), no payment processor (§9 — no real-money transactions), no third-party identity provider (email+password only)</text>
+
+  <!-- ===== Panel B: Containers ===== -->
+  <text x="60" y="510" class="panelhdr">Level 2 — Containers</text>
+  <line x1="60" y1="518" x2="1240" y2="518" stroke="#c9c6de" stroke-width="1"/>
+
+  <!-- Teacher / Learner small -->
+  <rect x="80" y="540" width="180" height="60" rx="8" fill="#3357c9"/>
+  <g stroke="#ffffff" stroke-width="1.6" fill="none"><circle cx="102" cy="558" r="7"/><path d="M91,576 q11,-11 22,0"/></g>
+  <text x="180" y="568" class="personlabel">Teacher</text>
+  <text x="180" y="583" class="persontype">[Person]</text>
+
+  <rect x="1040" y="540" width="180" height="60" rx="8" fill="#3357c9"/>
+  <g stroke="#ffffff" stroke-width="1.6" fill="none"><circle cx="1062" cy="558" r="7"/><path d="M1051,576 q11,-11 22,0"/></g>
+  <text x="1140" y="568" class="personlabel">Learner</text>
+  <text x="1140" y="583" class="persontype">[Person]</text>
+
+  <!-- System boundary -->
+  <rect x="280" y="660" width="740" height="430" rx="10" fill="#f8f8fc" stroke="#3f30c4" stroke-width="2" stroke-dasharray="8 5"/>
+  <text x="298" y="682" class="boundarylabel">System boundary: QuestLearn</text>
+
+  <line x1="180" y1="600" x2="440" y2="695" stroke="#454263" stroke-width="1.5" marker-end="url(#a14)"/>
+  <text x="290" y="640" class="arrowlabel">Uses [HTTPS]</text>
+
+  <line x1="1140" y1="600" x2="850" y2="695" stroke="#454263" stroke-width="1.5" marker-end="url(#a14)"/>
+  <text x="1015" y="640" class="arrowlabel">Uses [HTTPS]</text>
+
+  <!-- Web app -->
+  <rect x="320" y="700" width="280" height="90" rx="8" fill="#4f3fe0"/>
+  <text x="460" y="726" class="syslabel">Web app</text>
+  <text x="460" y="742" class="systype">[Container: Next.js (App Router), React 19]</text>
+  <text x="460" y="762" class="syssub">Server-rendered shell + client pages;</text>
+  <text x="460" y="776" class="syssub">every dynamic route uses useParams()</text>
+
+  <line x1="460" y1="790" x2="460" y2="822" stroke="#454263" stroke-width="1.5" marker-end="url(#a14)"/>
+  <text x="590" y="808" class="arrowlabel">Calls [REST/JSON, Bearer JWT]</text>
+
+  <!-- API -->
+  <rect x="320" y="824" width="280" height="90" rx="8" fill="#4f3fe0"/>
+  <text x="460" y="850" class="syslabel">API</text>
+  <text x="460" y="866" class="systype">[Container: NestJS, TypeScript]</text>
+  <text x="460" y="886" class="syssub">11 feature modules; Bearer JWT + CSRF;</text>
+  <text x="460" y="900" class="syssub">tenant scoping enforced per-service</text>
+
+  <!-- Postgres cylinder -->
+  <g>
+    <path d="M690,720 a90,14 0 0 0 180,0 v96 a90,14 0 0 1 -180,0 z" fill="#1e40af"/>
+    <ellipse cx="780" cy="720" rx="90" ry="14" fill="#3357c9"/>
+    <text x="780" y="768" class="syslabel">Database</text>
+    <text x="780" y="784" class="systype" fill="#dfe6fb">[ContainerDb: PostgreSQL 17]</text>
+    <text x="780" y="800" class="syssub">22 models, tenantId on every</text>
+    <text x="780" y="814" class="syssub">applicable table</text>
+  </g>
+
+  <!-- Redis cylinder (dashed, health-check only) -->
+  <g>
+    <path d="M690,870 a90,14 0 0 0 180,0 v90 a90,14 0 0 1 -180,0 z" fill="#ffffff" stroke="#dc2626" stroke-width="1.6" stroke-dasharray="7 5"/>
+    <ellipse cx="780" cy="870" rx="90" ry="14" fill="#ffffff" stroke="#dc2626" stroke-width="1.6" stroke-dasharray="7 5"/>
+    <text x="780" y="912" class="syslabel" fill="#1e1c38">Cache</text>
+    <text x="780" y="928" class="systype" fill="#7a3030">[ContainerDb: Redis 8]</text>
+    <text x="780" y="944" class="syssub" fill="#7a3030">Provisioned, health-checked —</text>
+    <text x="780" y="958" class="syssub" fill="#7a3030">not backing sessions/rate limits</text>
+  </g>
+
+  <line x1="600" y1="750" x2="686" y2="746" stroke="#454263" stroke-width="1.5" marker-end="url(#a14)"/>
+  <text x="640" y="738" class="arrowlabel">Reads/writes</text>
+
+  <line x1="600" y1="880" x2="686" y2="900" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#a14r)"/>
+  <text x="640" y="895" class="arrowlabel" fill="#dc2626" font-style="italic">Health check only</text>
+
+  <!-- Source footer -->
+  <rect x="80" y="1100" width="1140" height="42" rx="8" fill="#ffffff" stroke="#454263" stroke-width="1.4"/>
+  <text x="98" y="1124" class="note">Source: apps/api/src/app.module.ts (11 modules), next.config.js + package.json (Next.js 15.5, React 19), schema.prisma (22 models), README Module 1 known limitations.</text>
+</svg>
