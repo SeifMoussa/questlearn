@@ -21,6 +21,15 @@ const csp = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Emits a self-contained .next/standalone server (a trimmed
+  // node_modules + server.js) -- the officially recommended shape for
+  // a Docker production image, see apps/web/Dockerfile, which sets
+  // DOCKER_BUILD=1. Gated behind that flag (rather than always on)
+  // because standalone's file-tracing step recreates pnpm's node_modules
+  // symlink structure, which requires elevated privileges on Windows --
+  // it works fine inside the Linux build container, but would otherwise
+  // break every local `next build` on a non-elevated Windows dev machine.
+  ...(process.env.DOCKER_BUILD ? { output: "standalone" } : {}),
   async headers() {
     return [
       {
