@@ -40,34 +40,43 @@
 
   <!-- Column 1 use cases (x center 400) -->
   <ellipse cx="400" cy="110" rx="150" ry="34" class="uc"/>
+  <g stroke="#3f30c4" stroke-width="1.3" fill="none"><circle cx="273" cy="99" r="6"/><path d="M265,113 q8,-9 16,0"/><line x1="284" y1="99" x2="290" y2="99" stroke-width="1.6"/><path d="M287,96 l3,3 l-3,3" fill="none"/></g>
   <text x="400" y="106" class="uctext">Join Class via Code</text>
   <text x="400" y="122" class="uctext">(registers or links account)</text>
 
   <ellipse cx="400" cy="195" rx="150" ry="34" class="uc"/>
+  <g stroke="#3f30c4" stroke-width="1.3" fill="none"><rect x="272" y="183" width="13" height="16" rx="1.5"/><line x1="275" y1="188" x2="282" y2="188"/><line x1="275" y1="192" x2="282" y2="192"/></g>
   <text x="400" y="199" class="uctext">View Assigned Work</text>
 
   <ellipse cx="400" cy="280" rx="150" ry="34" class="uc"/>
+  <g stroke="#3f30c4" stroke-width="1.5" fill="none"><circle cx="278" cy="272" r="7"/><path d="M278,268 v5 l3,3"/></g>
   <text x="400" y="276" class="uctext">Attempt Assignment</text>
   <text x="400" y="292" class="uctext">(start, autosave, hint)</text>
 
   <ellipse cx="400" cy="365" rx="150" ry="34" class="uc" id="submit-oval"/>
+  <g stroke="#3f30c4" stroke-width="1.5" fill="none"><path d="M270,365 h16 M280,359 l6,6 l-6,6"/></g>
   <text x="400" y="369" class="uctext">Submit Attempt</text>
 
   <ellipse cx="400" cy="450" rx="150" ry="34" class="uc"/>
+  <g fill="#3f30c4"><rect x="272" y="436" width="5" height="8"/><rect x="280" y="430" width="5" height="14"/><rect x="288" y="440" width="5" height="4"/></g>
   <text x="400" y="446" class="uctext">View Result</text>
   <text x="400" y="462" class="uctext">(score, correct answers)</text>
 
   <!-- Column 2 use cases (x center 800) -->
   <ellipse cx="800" cy="110" rx="150" ry="34" class="uc"/>
+  <g stroke="#3f30c4" stroke-width="1.4" fill="none"><rect x="672" y="99" width="16" height="12" rx="1.5"/><path d="M676,99 v-4 a4,4 0 0 1 8,0 v4"/></g>
   <text x="800" y="114" class="uctext">Log In / Log Out</text>
 
   <ellipse cx="800" cy="195" rx="150" ry="34" class="uc"/>
+  <g stroke="#3f30c4" stroke-width="1.3" fill="none"><path d="M672,190 l5,-6 l5,6 z"/><circle cx="686" cy="188" r="5.5"/></g>
   <text x="800" y="199" class="uctext">View XP, Level &amp; Badges</text>
 
   <ellipse cx="800" cy="280" rx="150" ry="34" class="uc"/>
+  <g stroke="#3f30c4" stroke-width="1.3" fill="none"><circle cx="678" cy="277" r="7"/><circle cx="678" cy="277" r="2.5"/></g>
   <text x="800" y="284" class="uctext">View Concept Mastery</text>
 
   <ellipse cx="800" cy="365" rx="150" ry="34" class="uc"/>
+  <g stroke="#3f30c4" stroke-width="1.5" fill="none"><line x1="670" y1="352" x2="670" y2="368"/><path d="M670,353 h11 l-3,4 l3,4 h-11 z" fill="#3f30c4"/></g>
   <text x="800" y="369" class="uctext">View Quest Map &amp; Progress</text>
 
   <!-- System-triggered side effect, drawn distinctly (dashed, teal) -->
