@@ -6,48 +6,7 @@ a textbook DDD carve-up applied after the fact. Grouped by real
 service-level dependency injection where it exists, and explicitly
 NOT where it doesn't.
 
-```mermaid
-graph TB
-    subgraph AuthTenancy["Auth & Tenancy"]
-        Auth["auth<br/>(User, Tenant, Session,<br/>VerificationToken, PasswordResetToken)"]
-        Classes["classes<br/>(Class, RosterEntry —<br/>who belongs to a tenant, and how)"]
-    end
-
-    subgraph ContentAuthoring["Content Authoring"]
-        Questions["questions<br/>(always-versioned)"]
-        Activities["activities<br/>(draft → published, immutable)"]
-        Concepts["concepts<br/>(mastery tags)"]
-    end
-
-    subgraph Assessment["Assessment"]
-        Assignments["assignments"]
-        Attempts["attempts<br/>+ scoring.ts (plain functions,<br/>not its own module)"]
-    end
-
-    subgraph Engagement["Engagement"]
-        Mastery["mastery<br/>(live-computed, no stored state)"]
-        Gamification["gamification<br/>(XP, levels, badges)"]
-        Quests["quests<br/>(linear, gated)"]
-    end
-
-    subgraph Reporting["Reporting (read-side)"]
-        Reports["reports<br/>(composes, never owns logic)"]
-    end
-
-    Classes -.->|"partnership: redeemJoinCode()<br/>calls AuthService.issueSessionForUser()<br/>directly"| Auth
-
-    Attempts -->|"in-process call,<br/>same transaction"| Mastery
-    Attempts -->|"in-process call,<br/>same transaction"| Gamification
-    Attempts -->|"in-process call,<br/>same transaction"| Quests
-    Gamification -->|"in-process call"| Mastery
-    Quests -->|"in-process call"| Mastery
-
-    Reports -->|"reads/composes"| Mastery
-    Reports -->|"reads/composes"| Gamification
-    Reports -->|"reads/composes"| Quests
-
-    Assessment -.->|"shared schema —<br/>direct Prisma queries against<br/>Activity/ActivityQuestion/QuestionVersion,<br/>NOT a service call"| ContentAuthoring
-```
+![DDD Context Map](./15-ddd-context-map.svg)
 
 **A real architectural finding, not a simplification:** Assessment
 (`assignments`, `attempts`) never imports `ActivitiesModule` or

@@ -1,0 +1,141 @@
+<svg viewBox="0 0 1400 950" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    .subtitle { fill: #5c5878; font-size: 12px; text-anchor: middle; }
+    .grouphdr { fill: #ffffff; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .modlabel { fill: #1e1c38; font-size: 12.5px; font-weight: 700; text-anchor: middle; }
+    .modsub { fill: #5c5878; font-size: 10px; text-anchor: middle; }
+    .edgelabel { fill: #454263; font-size: 9.8px; text-anchor: middle; }
+    .note { fill: #5c5878; font-size: 11.5px; }
+    .notetitle { fill: #1e40af; font-size: 12.5px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="a15" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#454263"/></marker>
+    <marker id="a15o" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#d97f06"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1400" height="950" fill="#ffffff"/>
+
+  <text x="700" y="26" class="title">DDD Context Map</text>
+  <text x="700" y="45" class="subtitle">Bounded contexts as they actually emerged across Modules 1–9 — grouped by real apps/api/src/*/ module boundaries and confirmed integration style</text>
+
+  <!-- Auth & Tenancy group -->
+  <rect x="60" y="70" width="280" height="180" rx="10" fill="#eaf0fc" stroke="#1e40af" stroke-width="2"/>
+  <rect x="60" y="70" width="280" height="26" rx="10" fill="#1e40af"/>
+  <rect x="60" y="83" width="280" height="13" fill="#1e40af"/>
+  <text x="200" y="88" class="grouphdr">Auth &amp; Tenancy</text>
+
+  <rect x="80" y="104" width="240" height="52" rx="6" fill="#ffffff" stroke="#1e40af" stroke-width="1.3"/>
+  <text x="200" y="124" class="modlabel">auth</text>
+  <text x="200" y="140" class="modsub">User, Tenant, Session,</text>
+  <text x="200" y="152" class="modsub">VerificationToken, PasswordResetToken</text>
+
+  <rect x="80" y="164" width="240" height="48" rx="6" fill="#ffffff" stroke="#1e40af" stroke-width="1.3"/>
+  <text x="200" y="184" class="modlabel">classes</text>
+  <text x="200" y="200" class="modsub">Class, RosterEntry — who belongs to a tenant</text>
+
+  <path d="M200,164 C110,190 110,215 195,222" fill="none" stroke="#454263" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#a15)"/>
+  <text x="130" y="235" class="edgelabel">partnership: redeemJoinCode()</text>
+  <text x="130" y="247" class="edgelabel">calls AuthService directly</text>
+
+  <!-- Content Authoring group -->
+  <rect x="400" y="70" width="300" height="230" rx="10" fill="#e6f7f5" stroke="#0d9c8c" stroke-width="2"/>
+  <rect x="400" y="70" width="300" height="26" rx="10" fill="#0d9c8c"/>
+  <rect x="400" y="83" width="300" height="13" fill="#0d9c8c"/>
+  <text x="550" y="88" class="grouphdr">Content Authoring</text>
+
+  <rect x="420" y="104" width="260" height="40" rx="6" fill="#ffffff" stroke="#0d9c8c" stroke-width="1.3"/>
+  <text x="550" y="128" class="modlabel">questions (always-versioned)</text>
+
+  <rect x="420" y="152" width="260" height="40" rx="6" fill="#ffffff" stroke="#0d9c8c" stroke-width="1.3"/>
+  <text x="550" y="176" class="modlabel">activities (draft → published)</text>
+
+  <rect x="420" y="200" width="260" height="40" rx="6" fill="#ffffff" stroke="#0d9c8c" stroke-width="1.3"/>
+  <text x="550" y="224" class="modlabel">concepts (mastery tags)</text>
+
+  <!-- Assessment group -->
+  <rect x="1040" y="70" width="300" height="200" rx="10" fill="#f1effe" stroke="#4f3fe0" stroke-width="2"/>
+  <rect x="1040" y="70" width="300" height="26" rx="10" fill="#4f3fe0"/>
+  <rect x="1040" y="83" width="300" height="13" fill="#4f3fe0"/>
+  <text x="1190" y="88" class="grouphdr">Assessment</text>
+
+  <rect x="1060" y="104" width="260" height="40" rx="6" fill="#ffffff" stroke="#4f3fe0" stroke-width="1.3"/>
+  <text x="1190" y="128" class="modlabel">assignments</text>
+
+  <rect x="1060" y="152" width="260" height="56" rx="6" fill="#ffffff" stroke="#4f3fe0" stroke-width="1.3"/>
+  <text x="1190" y="172" class="modlabel">attempts</text>
+  <text x="1190" y="188" class="modsub">+ scoring.ts (plain functions,</text>
+  <text x="1190" y="200" class="modsub">not its own module)</text>
+
+  <!-- shared kernel edge: Assessment -.-> Content Authoring -->
+  <path d="M1055,190 C880,220 820,220 705,190" fill="none" stroke="#d97f06" stroke-width="1.6" stroke-dasharray="7 5" marker-end="url(#a15o)"/>
+  <text x="880" y="250" class="edgelabel" fill="#d97f06" font-weight="700">shared schema — direct Prisma queries against</text>
+  <text x="880" y="263" class="edgelabel" fill="#d97f06" font-weight="700">Activity/ActivityQuestion/QuestionVersion, NOT a service call</text>
+
+  <!-- Engagement group -->
+  <rect x="400" y="360" width="300" height="290" rx="10" fill="#fdf3e4" stroke="#d97f06" stroke-width="2"/>
+  <rect x="400" y="360" width="300" height="26" rx="10" fill="#d97f06"/>
+  <rect x="400" y="373" width="300" height="13" fill="#d97f06"/>
+  <text x="550" y="378" class="grouphdr">Engagement</text>
+
+  <rect x="420" y="394" width="260" height="52" rx="6" fill="#ffffff" stroke="#d97f06" stroke-width="1.3"/>
+  <text x="550" y="415" class="modlabel">mastery</text>
+  <text x="550" y="431" class="modsub">live-computed, no stored state</text>
+
+  <rect x="420" y="454" width="260" height="52" rx="6" fill="#ffffff" stroke="#d97f06" stroke-width="1.3"/>
+  <text x="550" y="475" class="modlabel">gamification</text>
+  <text x="550" y="491" class="modsub">XP, levels, badges</text>
+
+  <line x1="550" y1="454" x2="550" y2="448" stroke="#454263" stroke-width="1.3" marker-end="url(#a15)"/>
+
+  <rect x="420" y="514" width="260" height="52" rx="6" fill="#ffffff" stroke="#d97f06" stroke-width="1.3"/>
+  <text x="550" y="535" class="modlabel">quests</text>
+  <text x="550" y="551" class="modsub">linear, gated</text>
+
+  <path d="M470,514 C380,470 380,430 465,417" fill="none" stroke="#454263" stroke-width="1.3" marker-end="url(#a15)"/>
+  <text x="380" y="466" class="edgelabel">in-process call</text>
+
+  <!-- Reporting group -->
+  <rect x="1040" y="360" width="300" height="130" rx="10" fill="#f4f4f7" stroke="#5c5878" stroke-width="2"/>
+  <rect x="1040" y="360" width="300" height="26" rx="10" fill="#5c5878"/>
+  <rect x="1040" y="373" width="300" height="13" fill="#5c5878"/>
+  <text x="1190" y="378" class="grouphdr">Reporting (read-side)</text>
+
+  <rect x="1060" y="394" width="260" height="56" rx="6" fill="#ffffff" stroke="#5c5878" stroke-width="1.3"/>
+  <text x="1190" y="416" class="modlabel">reports</text>
+  <text x="1190" y="432" class="modsub">composes, never owns logic</text>
+
+  <!-- Cross-group edges: Attempts -> Mastery/Gamification/Quests -->
+  <path d="M1060,168 C900,240 750,340 685,410" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a15)"/>
+  <path d="M1060,178 C880,280 760,400 685,468" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a15)"/>
+  <path d="M1060,190 C850,320 740,470 685,530" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a15)"/>
+  <text x="900" y="330" class="edgelabel">in-process call, same transaction</text>
+  <text x="900" y="343" class="edgelabel">(Attempts → Mastery / Gamification / Quests)</text>
+
+  <!-- Reports -> Mastery/Gamification/Quests -->
+  <path d="M1058,404 C900,390 780,400 685,412" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a15)"/>
+  <path d="M1058,418 C900,430 780,460 685,470" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a15)"/>
+  <path d="M1058,432 C900,470 780,520 685,530" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a15)"/>
+  <text x="950" y="500" class="edgelabel">reads/composes</text>
+  <text x="950" y="513" class="edgelabel">(Reports → Mastery / Gamification / Quests)</text>
+
+  <!-- Finding notes -->
+  <rect x="60" y="680" width="620" height="130" rx="8" fill="#fdf3e4" stroke="#d97f06" stroke-width="1.4"/>
+  <text x="78" y="702" class="notetitle" fill="#d97f06">A real architectural finding, not a simplification</text>
+  <text x="78" y="722" class="note">Assessment never imports ActivitiesModule or QuestionsModule (confirmed by grepping</text>
+  <text x="78" y="738" class="note">every module's imports: array). It reaches published-activity content through its own</text>
+  <text x="78" y="754" class="note">PrismaService queries against the same Postgres schema — a shared kernel (one</text>
+  <text x="78" y="770" class="note">schema, no anti-corruption layer), not a published API between contexts.</text>
+  <text x="78" y="794" class="note">A reasonable choice for a monolith this size, but a real coupling point.</text>
+
+  <rect x="720" y="680" width="620" height="130" rx="8" fill="#eaf0fc" stroke="#1e40af" stroke-width="1.4"/>
+  <text x="738" y="702" class="notetitle">Auth and Classes are a genuine partnership</text>
+  <text x="738" y="722" class="note">Not just "in the same folder": ClassesService.redeemJoinCode() calls</text>
+  <text x="738" y="738" class="note">AuthService.issueSessionForUser() directly to hand a brand-new learner</text>
+  <text x="738" y="754" class="note">account a real session in one step — the two contexts are deliberately</text>
+  <text x="738" y="770" class="note">coupled here, not accidentally.</text>
+
+  <!-- Source footer -->
+  <rect x="60" y="826" width="1280" height="60" rx="8" fill="#ffffff" stroke="#454263" stroke-width="1.4"/>
+  <text x="78" y="848" class="note">Source: every apps/api/src/*/*.module.ts (imports: arrays, confirmed by grep, matching 05-component-diagram.md);</text>
+  <text x="78" y="865" class="note">apps/api/src/classes/classes.service.ts (redeemJoinCode's call into AuthService).</text>
+</svg>
