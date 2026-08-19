@@ -1,0 +1,96 @@
+<svg viewBox="0 0 1040 700" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .boundary { fill: #f5f5fb; stroke: #3f30c4; stroke-width: 2; }
+    .uc { fill: #ffffff; stroke: #3f30c4; stroke-width: 1.5; }
+    .ucauto { fill: #eafbf8; stroke: #0d9c8c; stroke-width: 1.5; stroke-dasharray: 5 4; }
+    .uctext { fill: #1e1c38; font-size: 14px; text-anchor: middle; }
+    .assoc { stroke: #5c5878; stroke-width: 1.5; fill: none; }
+    .include { stroke: #0d9c8c; stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrow); }
+    .actor { stroke: #1e1c38; stroke-width: 2; fill: none; }
+    .actorhead { fill: #ffffff; stroke: #1e1c38; stroke-width: 2; }
+    .actorlabel { fill: #1e1c38; font-size: 15px; font-weight: 600; text-anchor: middle; }
+    .title { fill: #1e1c38; font-size: 18px; font-weight: 700; text-anchor: middle; }
+    .subtitle { fill: #5c5878; font-size: 12px; text-anchor: middle; }
+    .includelabel { fill: #0d9c8c; font-size: 11px; font-style: italic; text-anchor: middle; }
+  </style>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0d9c8c"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1040" height="700" fill="#ffffff"/>
+
+  <text x="520" y="26" class="title">Learner Use Cases</text>
+
+  <!-- System boundary -->
+  <rect x="220" y="45" width="770" height="615" rx="8" class="boundary"/>
+  <text x="605" y="70" class="uctext" font-weight="700">QuestLearn</text>
+
+  <!-- Actor: Learner -->
+  <g class="actor">
+    <circle cx="90" cy="330" r="16" class="actorhead"/>
+    <line x1="90" y1="346" x2="90" y2="400"/>
+    <line x1="62" y1="365" x2="118" y2="365"/>
+    <line x1="90" y1="400" x2="66" y2="440"/>
+    <line x1="90" y1="400" x2="114" y2="440"/>
+  </g>
+  <text x="90" y="460" class="actorlabel">Learner</text>
+
+  <!-- Column 1 use cases (x center 400) -->
+  <ellipse cx="400" cy="110" rx="150" ry="34" class="uc"/>
+  <text x="400" y="106" class="uctext">Join Class via Code</text>
+  <text x="400" y="122" class="uctext">(registers or links account)</text>
+
+  <ellipse cx="400" cy="195" rx="150" ry="34" class="uc"/>
+  <text x="400" y="199" class="uctext">View Assigned Work</text>
+
+  <ellipse cx="400" cy="280" rx="150" ry="34" class="uc"/>
+  <text x="400" y="276" class="uctext">Attempt Assignment</text>
+  <text x="400" y="292" class="uctext">(start, autosave, hint)</text>
+
+  <ellipse cx="400" cy="365" rx="150" ry="34" class="uc" id="submit-oval"/>
+  <text x="400" y="369" class="uctext">Submit Attempt</text>
+
+  <ellipse cx="400" cy="450" rx="150" ry="34" class="uc"/>
+  <text x="400" y="446" class="uctext">View Result</text>
+  <text x="400" y="462" class="uctext">(score, correct answers)</text>
+
+  <!-- Column 2 use cases (x center 800) -->
+  <ellipse cx="800" cy="110" rx="150" ry="34" class="uc"/>
+  <text x="800" y="114" class="uctext">Log In / Log Out</text>
+
+  <ellipse cx="800" cy="195" rx="150" ry="34" class="uc"/>
+  <text x="800" y="199" class="uctext">View XP, Level &amp; Badges</text>
+
+  <ellipse cx="800" cy="280" rx="150" ry="34" class="uc"/>
+  <text x="800" y="284" class="uctext">View Concept Mastery</text>
+
+  <ellipse cx="800" cy="365" rx="150" ry="34" class="uc"/>
+  <text x="800" y="369" class="uctext">View Quest Map &amp; Progress</text>
+
+  <!-- System-triggered side effect, drawn distinctly (dashed, teal) -->
+  <ellipse cx="800" cy="490" rx="165" ry="40" class="ucauto"/>
+  <text x="800" y="484" class="uctext">Record Mastery Evidence &amp;</text>
+  <text x="800" y="500" class="uctext">Award XP / Badges / Quest Progress</text>
+
+  <path d="M 480 375 C 600 400, 650 440, 660 480" class="include"/>
+  <text x="590" y="425" class="includelabel">«include» — automatic,</text>
+  <text x="590" y="440" class="includelabel">same transaction as grading</text>
+
+  <!-- Association lines: Learner to every directly-invoked use case -->
+  <line x1="118" y1="360" x2="276" y2="120" class="assoc"/>
+  <line x1="118" y1="365" x2="252" y2="200" class="assoc"/>
+  <line x1="118" y1="375" x2="252" y2="282" class="assoc"/>
+  <line x1="118" y1="390" x2="252" y2="365" class="assoc"/>
+  <line x1="118" y1="410" x2="252" y2="446" class="assoc"/>
+
+  <line x1="122" y1="345" x2="655" y2="122" class="assoc"/>
+  <line x1="122" y1="358" x2="655" y2="200" class="assoc"/>
+  <line x1="122" y1="372" x2="655" y2="282" class="assoc"/>
+  <line x1="122" y1="388" x2="655" y2="365" class="assoc"/>
+
+  <text x="605" y="595" class="subtitle">The teal dashed use case is never separately invoked — it fires automatically inside Submit Attempt's own transaction (AttemptsService.submit()).</text>
+  <text x="605" y="615" class="subtitle">Auth use cases (log in/out) shared with the Teacher diagram — the same AuthModule serves both roles.</text>
+</svg>

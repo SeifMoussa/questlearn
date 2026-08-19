@@ -1,0 +1,92 @@
+<svg viewBox="0 0 1040 700" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .boundary { fill: #f5f5fb; stroke: #3f30c4; stroke-width: 2; }
+    .uc { fill: #ffffff; stroke: #3f30c4; stroke-width: 1.5; }
+    .uctext { fill: #1e1c38; font-size: 14px; text-anchor: middle; }
+    .assoc { stroke: #5c5878; stroke-width: 1.5; fill: none; }
+    .actor { stroke: #1e1c38; stroke-width: 2; fill: none; }
+    .actorhead { fill: #ffffff; stroke: #1e1c38; stroke-width: 2; }
+    .actorlabel { fill: #1e1c38; font-size: 15px; font-weight: 600; text-anchor: middle; }
+    .title { fill: #1e1c38; font-size: 18px; font-weight: 700; text-anchor: middle; }
+    .subtitle { fill: #5c5878; font-size: 12px; text-anchor: middle; }
+    .includelabel { fill: #5c5878; font-size: 11px; font-style: italic; text-anchor: middle; }
+  </style>
+
+  <rect x="0" y="0" width="1040" height="700" fill="#ffffff"/>
+
+  <text x="520" y="26" class="title">Teacher Use Cases</text>
+
+  <!-- System boundary -->
+  <rect x="220" y="45" width="770" height="615" rx="8" class="boundary"/>
+  <text x="605" y="70" class="uctext" font-weight="700">QuestLearn</text>
+
+  <!-- Actor: Teacher -->
+  <g class="actor">
+    <circle cx="90" cy="330" r="16" class="actorhead"/>
+    <line x1="90" y1="346" x2="90" y2="400"/>
+    <line x1="62" y1="365" x2="118" y2="365"/>
+    <line x1="90" y1="400" x2="66" y2="440"/>
+    <line x1="90" y1="400" x2="114" y2="440"/>
+  </g>
+  <text x="90" y="460" class="actorlabel">Teacher</text>
+
+  <!-- Column 1 use cases (x center 400) -->
+  <ellipse cx="400" cy="110" rx="140" ry="34" class="uc"/>
+  <text x="400" y="106" class="uctext">Register &amp; Verify</text>
+  <text x="400" y="122" class="uctext">Account</text>
+
+  <ellipse cx="400" cy="195" rx="140" ry="34" class="uc"/>
+  <text x="400" y="191" class="uctext">Manage Classes</text>
+  <text x="400" y="207" class="uctext">&amp; Roster</text>
+
+  <ellipse cx="400" cy="280" rx="140" ry="34" class="uc"/>
+  <text x="400" y="276" class="uctext">Tag Concepts</text>
+  <text x="400" y="292" class="uctext">to Questions</text>
+
+  <ellipse cx="400" cy="365" rx="140" ry="34" class="uc"/>
+  <text x="400" y="361" class="uctext">Assign Activity</text>
+  <text x="400" y="377" class="uctext">to Class</text>
+
+  <ellipse cx="400" cy="450" rx="140" ry="34" class="uc"/>
+  <text x="400" y="446" class="uctext">View Class Report</text>
+  <text x="400" y="462" class="uctext">(completion, avg score, CSV)</text>
+
+  <ellipse cx="400" cy="535" rx="140" ry="34" class="uc"/>
+  <text x="400" y="539" class="uctext">View Learner Report</text>
+
+  <!-- Column 2 use cases (x center 800) -->
+  <ellipse cx="800" cy="110" rx="150" ry="34" class="uc"/>
+  <text x="800" y="114" class="uctext">Log In / Log Out</text>
+
+  <ellipse cx="800" cy="195" rx="150" ry="34" class="uc"/>
+  <text x="800" y="191" class="uctext">Manage Question Bank</text>
+  <text x="800" y="207" class="uctext">(create, edit, archive)</text>
+
+  <ellipse cx="800" cy="280" rx="150" ry="34" class="uc"/>
+  <text x="800" y="276" class="uctext">Build &amp; Publish</text>
+  <text x="800" y="292" class="uctext">Activity</text>
+
+  <ellipse cx="800" cy="365" rx="150" ry="34" class="uc"/>
+  <text x="800" y="361" class="uctext">Build Quest</text>
+  <text x="800" y="377" class="uctext">(steps, gates)</text>
+
+  <ellipse cx="800" cy="450" rx="150" ry="34" class="uc"/>
+  <text x="800" y="454" class="uctext">View Question Analysis</text>
+
+  <!-- Association lines: Teacher to every use case -->
+  <line x1="118" y1="360" x2="266" y2="120" class="assoc"/>
+  <line x1="118" y1="365" x2="262" y2="200" class="assoc"/>
+  <line x1="118" y1="375" x2="262" y2="282" class="assoc"/>
+  <line x1="118" y1="390" x2="262" y2="362" class="assoc"/>
+  <line x1="118" y1="410" x2="262" y2="446" class="assoc"/>
+  <line x1="118" y1="425" x2="262" y2="530" class="assoc"/>
+
+  <line x1="122" y1="345" x2="655" y2="122" class="assoc"/>
+  <line x1="122" y1="358" x2="655" y2="200" class="assoc"/>
+  <line x1="122" y1="372" x2="655" y2="282" class="assoc"/>
+  <line x1="122" y1="388" x2="655" y2="362" class="assoc"/>
+  <line x1="122" y1="405" x2="655" y2="446" class="assoc"/>
+
+  <text x="605" y="595" class="subtitle">Not built: manual XP/badge award, grade override with reason — both explicitly deferred (see SECURITY_NOTES.md / README known limitations)</text>
+  <text x="605" y="615" class="subtitle">Auth use cases (register/login/etc.) shared with the Learner diagram — the same AuthModule serves both roles.</text>
+</svg>
