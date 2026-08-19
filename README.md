@@ -1258,11 +1258,14 @@ before now); this section is the summary.
   self-hosted fonts actually matters.
 - **Accessibility**: a real, deliberate `:focus-visible` outline on
   every text input (`Input.tsx` had suppressed it with no
-  replacement), two more keyboard-operability bugs found and fixed
-  while auditing the rest of the design system (`Switch`, `Tag`), and
-  three contrast failures fixed with values computed via the actual
-  WCAG formula (`Badge`'s status tones, `--text-secondary`) — not
-  eyeballed, not assumed passing.
+  replacement — [before](./docs/screenshots/10-hardening/focus-indicator-before.png)
+  / [after](./docs/screenshots/10-hardening/focus-indicator-after.png),
+  not spec-required per §14 but captured as evidence anyway), two more
+  keyboard-operability bugs found and fixed while auditing the rest of
+  the design system (`Switch`, `Tag`), and three contrast failures
+  fixed with values computed via the actual WCAG formula (`Badge`'s
+  status tones, `--text-secondary`) — not eyeballed, not assumed
+  passing.
 - **Production Dockerfiles**: `apps/api/Dockerfile` and
   `apps/web/Dockerfile` — neither existed before this module (only
   local Postgres/Redis infra had a Compose file). Verified end-to-end

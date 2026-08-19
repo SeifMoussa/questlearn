@@ -162,7 +162,13 @@ to would silently go permissive. `WEB_URL` is now a required env var
   input/textarea across all 9 prior modules. Replaced with a
   deliberate `:focus-visible` outline (2px solid brand-primary, 2px
   offset) via a CSS class, not a silent revert to the inconsistent
-  native ring.
+  native ring. Not spec-required (§14 lists no screenshot requirement
+  for Module 10 — "no new UI"), but captured anyway as evidence
+  alongside the `getComputedStyle` proof already in the commit
+  history: [before](./docs/screenshots/10-hardening/focus-indicator-before.png)
+  (Tab pressed, zero visible indication) /
+  [after](./docs/screenshots/10-hardening/focus-indicator-after.png)
+  (same Tab press, a real ring on the Email field).
 - **Keyboard operability (2.1.1):** auditing beyond `Input.tsx` found
   two more real violations — `Switch`'s toggle and `Tag`'s remove
   control were both `<span onClick>`, unreachable by keyboard and with

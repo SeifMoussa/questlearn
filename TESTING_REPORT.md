@@ -78,7 +78,10 @@ committed, not just bundled into one final pass:
   `getComputedStyle(document.activeElement)` after a real Tab
   keypress in a real browser session, confirming the outline actually
   renders (`rgb(79, 63, 224) solid 2px`, 2px offset), not just that
-  the CSS compiles.
+  the CSS compiles. Also captured as a real before/after screenshot
+  pair (`docs/screenshots/10-hardening/`) — not spec-required (§14
+  lists no screenshot for Module 10), added anyway as visual evidence
+  alongside the computed-style proof.
 - **Switch/Tag keyboard fixes + contrast fixes**: contrast values
   computed via the real WCAG relative-luminance formula (not
   eyeballed), then confirmed live via `getComputedStyle` that the new
