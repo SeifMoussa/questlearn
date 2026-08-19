@@ -1,0 +1,123 @@
+<svg viewBox="0 0 1500 480" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    .steplabel { fill: #1e1c38; font-size: 11px; font-weight: 600; text-anchor: middle; }
+    .num { fill: #ffffff; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .note { fill: #5c5878; font-size: 11.5px; }
+    .notetitle { fill: #1e40af; font-size: 12.5px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="a1" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#454263"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1500" height="480" fill="#ffffff"/>
+  <text x="750" y="30" class="title">8. CI/CD Pipeline — .github/workflows/ci.yml</text>
+  <text x="750" y="50" class="note" text-anchor="middle">Triggered on every push to main and every pull request. One job, real Postgres 17 + Redis 8 service containers — not mocks.</text>
+
+  <!-- Row 1: steps 1-9 -->
+  <g id="row1">
+    <!-- step template: circle at (cx,90) r=22, label below at y=130/145 -->
+  </g>
+
+  <!-- generate step positions: 9 columns, x from 80 to 1420 -->
+  <!-- Step 1 Checkout -->
+  <circle cx="90" cy="100" r="22" fill="#1e40af"/><text x="90" y="105" class="num">1</text>
+  <text x="90" y="140" class="steplabel">Checkout</text>
+  <!-- 2 -->
+  <line x1="112" y1="100" x2="238" y2="100" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="260" cy="100" r="22" fill="#1e40af"/><text x="260" y="105" class="num">2</text>
+  <text x="260" y="140" class="steplabel">Setup Node</text>
+  <!-- 3 -->
+  <line x1="282" y1="100" x2="408" y2="100" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="430" cy="100" r="22" fill="#1e40af"/><text x="430" y="105" class="num">3</text>
+  <text x="430" y="140" class="steplabel">Setup pnpm</text>
+  <!-- 4 -->
+  <line x1="452" y1="100" x2="578" y2="100" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="600" cy="100" r="22" fill="#1e40af"/><text x="600" y="105" class="num">4</text>
+  <text x="600" y="140" class="steplabel">Install deps</text>
+  <text x="600" y="153" class="note" text-anchor="middle" font-size="9.5">frozen lockfile</text>
+  <!-- 5 -->
+  <line x1="622" y1="100" x2="748" y2="100" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="770" cy="100" r="22" fill="#0d9c8c"/><text x="770" y="105" class="num">5</text>
+  <text x="770" y="140" class="steplabel">Build shared</text>
+  <text x="770" y="153" class="note" text-anchor="middle" font-size="9.5">config + design-system</text>
+  <!-- 6 -->
+  <line x1="792" y1="100" x2="918" y2="100" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="940" cy="100" r="22" fill="#0d9c8c"/><text x="940" y="105" class="num">6</text>
+  <text x="940" y="140" class="steplabel">Generate</text>
+  <text x="940" y="153" class="note" text-anchor="middle" font-size="9.5">Prisma client</text>
+  <!-- 7 -->
+  <line x1="962" y1="100" x2="1088" y2="100" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="1110" cy="100" r="22" fill="#d97f06"/><text x="1110" y="105" class="num">7</text>
+  <text x="1110" y="140" class="steplabel">Lint</text>
+  <!-- 8 -->
+  <line x1="1132" y1="100" x2="1258" y2="100" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="1280" cy="100" r="22" fill="#d97f06"/><text x="1280" y="105" class="num">8</text>
+  <text x="1280" y="140" class="steplabel">Typecheck</text>
+  <!-- 9 -->
+  <line x1="1302" y1="100" x2="1398" y2="100" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="1420" cy="100" r="22" fill="#4f3fe0"/><text x="1420" y="105" class="num">9</text>
+  <text x="1420" y="140" class="steplabel">Apply Prisma</text>
+  <text x="1420" y="153" class="note" text-anchor="middle" font-size="9.5">migrations (deploy)</text>
+
+  <!-- Wrap to row 2 -->
+  <path d="M1420,178 v20 h-1330 v20" fill="none" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+
+  <!-- Row 2: steps 10-18 -->
+  <circle cx="90" cy="260" r="22" fill="#4f3fe0"/><text x="90" y="265" class="num">10</text>
+  <text x="90" y="300" class="steplabel">Seed database</text>
+
+  <line x1="112" y1="260" x2="228" y2="260" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="255" cy="260" r="22" fill="#dc2626"/><text x="255" y="265" class="num">11</text>
+  <text x="255" y="300" class="steplabel">Unit + integration</text>
+  <text x="255" y="313" class="note" text-anchor="middle" font-size="9.5">tests (Jest)</text>
+
+  <line x1="277" y1="260" x2="393" y2="260" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="420" cy="260" r="22" fill="#1e40af"/><text x="420" y="265" class="num">12</text>
+  <text x="420" y="300" class="steplabel">Build</text>
+  <text x="420" y="313" class="note" text-anchor="middle" font-size="9.5">API + web, production</text>
+
+  <line x1="442" y1="260" x2="558" y2="260" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="585" cy="260" r="22" fill="#a855f7"/><text x="585" y="265" class="num">13</text>
+  <text x="585" y="300" class="steplabel">Install Chromium</text>
+
+  <line x1="607" y1="260" x2="723" y2="260" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="750" cy="260" r="22" fill="#1e40af"/><text x="750" y="265" class="num">14</text>
+  <text x="750" y="300" class="steplabel">Start API</text>
+  <text x="750" y="313" class="note" text-anchor="middle" font-size="9.5">background, port 4000</text>
+
+  <line x1="772" y1="260" x2="888" y2="260" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="915" cy="260" r="22" fill="#1e40af"/><text x="915" y="265" class="num">15</text>
+  <text x="915" y="300" class="steplabel">Start web</text>
+  <text x="915" y="313" class="note" text-anchor="middle" font-size="9.5">background, port 3000</text>
+
+  <line x1="937" y1="260" x2="1053" y2="260" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="1080" cy="260" r="22" fill="#5c5878"/><text x="1080" y="265" class="num">16</text>
+  <text x="1080" y="300" class="steplabel">Wait for both</text>
+  <text x="1080" y="313" class="note" text-anchor="middle" font-size="9.5">/health + / respond</text>
+
+  <line x1="1102" y1="260" x2="1218" y2="260" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="1245" cy="260" r="24" fill="#16a34a"/><text x="1245" y="265" class="num">17</text>
+  <text x="1245" y="303" class="steplabel">Browser-driven E2E</text>
+  <text x="1245" y="316" class="note" text-anchor="middle" font-size="9.5">verification (full real-browser suite)</text>
+
+  <line x1="1269" y1="260" x2="1385" y2="260" stroke="#454263" stroke-width="1.5" marker-end="url(#a1)"/>
+  <circle cx="1420" cy="260" r="22" fill="#0d9c8c"/><text x="1420" y="265" class="num">18</text>
+  <text x="1420" y="300" class="steplabel">Upload E2E</text>
+  <text x="1420" y="313" class="note" text-anchor="middle" font-size="9.5">run artifacts (always)</text>
+
+  <!-- Outcome boxes -->
+  <rect x="60" y="350" width="330" height="55" rx="8" fill="#ebfbef" stroke="#16a34a" stroke-width="1.6"/>
+  <text x="80" y="373" class="note" font-weight="700" fill="#16a34a">✓ Status checks: PASS</text>
+  <text x="80" y="392" class="note">All 18 stages succeeded</text>
+
+  <rect x="410" y="350" width="330" height="55" rx="8" fill="#fdecec" stroke="#dc2626" stroke-width="1.6"/>
+  <text x="430" y="373" class="note" font-weight="700" fill="#dc2626">✕ Status checks: FAIL</text>
+  <text x="430" y="392" class="note">Stops at the first failing stage —</text>
+
+  <rect x="760" y="350" width="680" height="55" rx="8" fill="#f1effe" stroke="#4f3fe0" stroke-width="1.6"/>
+  <text x="780" y="373" class="note" font-weight="700" fill="#4f3fe0">A failure before step 17 is caught before a browser is ever launched</text>
+  <text x="780" y="392" class="note">Lint/typecheck/unit-test failures are cheap; a full server-pair + browser suite run is not.</text>
+
+  <rect x="30" y="420" width="1440" height="45" rx="8" fill="#ffffff" stroke="#454263" stroke-width="1.4"/>
+  <text x="48" y="447" class="note">Source: .github/workflows/ci.yml — every stage name and order transcribed directly from the real steps: list, not paraphrased or reordered for narrative flow.</text>
+</svg>
