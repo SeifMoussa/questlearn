@@ -22,7 +22,6 @@ const baseStyle: CSSProperties = {
   color: 'var(--text-primary)',
   fontFamily: 'var(--font-ui)',
   fontSize: 14,
-  outline: 'none',
   resize: 'vertical',
 };
 
@@ -37,6 +36,7 @@ export function Input({ placeholder, value, onChange, multiline = false, maxLeng
         name={name}
         id={id}
         onChange={(e) => onChange && onChange(e.target.value)}
+        className="qs-input"
         style={baseStyle}
       />
     );
@@ -51,6 +51,7 @@ export function Input({ placeholder, value, onChange, multiline = false, maxLeng
       id={id}
       autoComplete={autoComplete}
       onChange={(e) => onChange && onChange(e.target.value)}
+      className="qs-input"
       style={baseStyle}
     />
   );
