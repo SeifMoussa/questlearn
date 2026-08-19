@@ -23,9 +23,25 @@ export function Tag({ children, onRemove }: TagProps) {
     >
       {children}
       {onRemove ? (
-        <span onClick={onRemove} style={{ cursor: 'pointer', color: 'var(--gray-500)', fontSize: 14, lineHeight: 1 }}>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove"
+          style={{
+            appearance: 'none',
+            border: 'none',
+            background: 'none',
+            padding: 0,
+            display: 'inline-flex',
+            cursor: 'pointer',
+            color: 'var(--gray-500)',
+            fontSize: 14,
+            lineHeight: 1,
+            fontFamily: 'inherit',
+          }}
+        >
           ×
-        </span>
+        </button>
       ) : null}
     </span>
   );
