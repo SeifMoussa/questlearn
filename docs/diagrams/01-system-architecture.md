@@ -22,45 +22,7 @@ before this diagram was drawn:
   caching or Phase 2's pub/sub, but today it backs nothing an API
   request actually depends on.
 
-```mermaid
-graph TB
-    Client["Next.js client<br/>(apps/web, App Router)"]
-
-    subgraph API["NestJS API (apps/api)"]
-        Guards["JwtAuthGuard + CsrfGuard<br/>(per-route, not global)"]
-        subgraph Modules["11 feature modules"]
-            Auth["auth"]
-            Classes["classes"]
-            Questions["questions"]
-            Activities["activities"]
-            Assignments["assignments"]
-            Attempts["attempts"]
-            Concepts["concepts"]
-            Mastery["mastery"]
-            Gamification["gamification"]
-            Quests["quests"]
-            Reports["reports"]
-        end
-    end
-
-    Postgres[("PostgreSQL<br/>source of truth<br/>tenant_id on every row")]
-    Redis[("Redis<br/>health-checked only —<br/>not yet backing sessions<br/>or rate limits")]
-
-    Client -->|"REST, Bearer JWT<br/>+ CSRF double-submit"| Guards
-    Guards --> Modules
-
-    Attempts -->|"same transaction<br/>as grading"| Mastery
-    Attempts -->|"same transaction<br/>as grading"| Gamification
-    Attempts -->|"same transaction<br/>as grading"| Quests
-    Reports -.->|"reads, composes"| Mastery
-    Reports -.->|"reads, composes"| Gamification
-    Reports -.->|"reads, composes"| Quests
-
-    Modules --> Postgres
-    API -.->|"/health ping only"| Redis
-
-    style Redis stroke-dasharray: 5 5
-```
+![System Architecture](./01-system-architecture.svg)
 
 **Source:** `apps/api/src/app.module.ts` (module list, global
 `ThrottlerGuard`), `apps/api/src/health/health.service.ts` (only

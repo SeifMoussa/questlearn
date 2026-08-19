@@ -7,60 +7,7 @@ step from the atomic claim onward runs inside one Postgres transaction
 pipeline safe to re-run under a genuine concurrent double-submit, not
 just a sequential retry.
 
-```mermaid
-sequenceDiagram
-    actor Learner
-    participant API as AttemptsController
-    participant Svc as AttemptsService.submit()
-    participant DB as Postgres (one transaction)
-    participant Scoring as scoreQuestion / overallScore
-    participant Mastery as MasteryService
-    participant Gamification as GamificationService
-    participant Quests as QuestsService
-
-    Learner->>API: POST /attempts/:id/submit
-    API->>Svc: submit(ctx, attemptId)
-    Svc->>DB: findFirst Attempt (tenant + learner scoped)
-    DB-->>Svc: attempt row
-
-    Svc->>DB: BEGIN transaction
-    Svc->>DB: updateMany Attempt<br/>WHERE id=? AND status='in_progress'<br/>SET status='submitted'
-
-    alt claim.count === 0 (already submitted, or lost the race)
-        DB-->>Svc: count = 0
-        Note over Svc: skip grading entirely —<br/>no re-grade, no error
-    else claim.count === 1 (this call won)
-        DB-->>Svc: count = 1
-        Svc->>DB: load ActivityQuestions (pinnedVersion) + AttemptResponses
-        Svc->>Scoring: scoreQuestion() per response
-        Scoring-->>Svc: isCorrect, pointsAwarded per question
-        Svc->>DB: update each AttemptResponse
-        Svc->>Scoring: overallScore(graded)
-        Svc->>DB: update Attempt.score
-
-        Svc->>Mastery: recordEvidenceForAttempt(tx, ctx, graded)
-        Mastery->>DB: insert MasteryEvidence rows<br/>(same transaction)
-        Mastery-->>Svc: touchedConceptIds
-
-        Svc->>Gamification: awardForAttempt(tx, ctx, {attemptId, score, ...})
-        Gamification->>DB: insert XpTransaction<br/>award LearnerBadge rows<br/>(same transaction)
-
-        Svc->>Quests: evaluateQuestProgressForAttempt(tx, ctx, {activityId, touchedConceptIds})
-        Quests->>DB: insert QuestCompletion rows if gates satisfied<br/>(same transaction)
-    end
-
-    Svc->>DB: COMMIT transaction
-    DB-->>Svc: transaction result (won: true/false)
-
-    opt won === true
-        Svc->>Svc: SecurityLogger.log("attempt_submitted")
-    end
-
-    Svc->>DB: loadAttemptDetail (fresh read, outside transaction)
-    DB-->>Svc: full graded attempt
-    Svc-->>API: attempt detail (score, correctAnswer now visible)
-    API-->>Learner: 200 OK
-```
+![Submission Pipeline sequence diagram](./02-submission-pipeline.svg)
 
 **Why the claim has to be inside the transaction, not before it:** if
 the `updateMany` claim and the grading writes were two separate round
