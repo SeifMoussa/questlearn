@@ -19,11 +19,11 @@
     "test": "echo \"no tests in @questlearn/design-system\" && exit 0"
   },
   "peerDependencies": {
-    "react": "^18.3.1"
+    "react": "^18.3.1 || ^19.0.0"
   },
   "devDependencies": {
     "@questlearn/config": "workspace:*",
-    "@types/react": "^18.3.11",
+    "@types/react": "^19.2.0",
     "typescript": "^5.6.3",
     "eslint": "^9.13.0"
   }
