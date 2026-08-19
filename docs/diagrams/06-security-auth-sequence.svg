@@ -1,0 +1,153 @@
+<svg viewBox="0 0 1420 1520" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    .plabel { fill: #1e1c38; font-size: 12.5px; font-weight: 700; text-anchor: middle; }
+    .psub { fill: #5c5878; font-size: 10px; text-anchor: middle; }
+    .msg { fill: #1e1c38; font-size: 11.5px; }
+    .msgret { fill: #5c5878; font-size: 11px; font-style: italic; }
+    .divider { fill: #3f30c4; font-size: 13px; font-weight: 700; text-anchor: start; }
+    .framelabel { fill: #1e40af; font-size: 11.5px; font-weight: 700; }
+    .note { fill: #5c5878; font-size: 10.5px; font-style: italic; }
+  </style>
+  <defs>
+    <marker id="a1" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#1e1c38"/></marker>
+    <marker id="a2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#5c5878"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1420" height="1520" fill="#ffffff"/>
+  <text x="710" y="30" class="title">6. Security &amp; Authentication — Sequence Diagram</text>
+
+  <!-- Headers -->
+  <rect x="45" y="50" width="90" height="42" rx="6" fill="#eafbf8" stroke="#166534" stroke-width="1.6"/>
+  <text x="90" y="67" class="plabel">User</text><text x="90" y="82" class="psub">actor</text>
+  <rect x="200" y="50" width="110" height="42" rx="6" fill="#eff6ff" stroke="#1e40af" stroke-width="1.6"/>
+  <text x="255" y="67" class="plabel">AuthController</text><text x="255" y="82" class="psub">+ CsrfGuard</text>
+  <rect x="400" y="50" width="110" height="42" rx="6" fill="#fff6e8" stroke="#d97f06" stroke-width="1.6"/>
+  <text x="455" y="67" class="plabel">AuthService</text>
+  <rect x="595" y="50" width="100" height="42" rx="6" fill="#f5eefe" stroke="#a855f7" stroke-width="1.6"/>
+  <text x="645" y="67" class="plabel">argon2</text><text x="645" y="82" class="psub">argon2id</text>
+  <rect x="775" y="50" width="110" height="42" rx="6" fill="#f1effe" stroke="#4f3fe0" stroke-width="1.6"/>
+  <text x="830" y="67" class="plabel">PostgreSQL</text>
+  <rect x="970" y="50" width="110" height="42" rx="6" fill="#eafbf8" stroke="#0d9c8c" stroke-width="1.6"/>
+  <text x="1025" y="67" class="plabel">JwtService</text>
+
+  <g stroke="#cfcce3" stroke-width="1.5" stroke-dasharray="4 3">
+    <line x1="90" y1="92" x2="90" y2="1470"/>
+    <line x1="255" y1="92" x2="255" y2="1470"/>
+    <line x1="455" y1="92" x2="455" y2="1470"/>
+    <line x1="645" y1="92" x2="645" y2="1470"/>
+    <line x1="830" y1="92" x2="830" y2="1470"/>
+    <line x1="1025" y1="92" x2="1025" y2="1470"/>
+  </g>
+
+  <!-- REGISTER band -->
+  <rect x="45" y="110" width="1330" height="330" rx="6" fill="#f5f5fb"/>
+  <text x="65" y="132" class="divider" text-anchor="start">A. REGISTER</text>
+
+  <line x1="95" y1="155" x2="250" y2="155" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="100" y="148" class="msg">1. POST /auth/register {email, password, name}</text>
+  <line x1="260" y1="185" x2="450" y2="185" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="265" y="178" class="msg">2. register(dto)</text>
+  <line x1="460" y1="215" x2="825" y2="215" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="208" class="msg">3. findUnique User by email</text>
+
+  <rect x="60" y="240" width="1300" height="185" fill="none" stroke="#1e40af" stroke-width="1.4"/>
+  <path d="M60,240 h85 v13 l-9,9 h-76 z" fill="#dbeafe" stroke="#1e40af" stroke-width="1.2"/>
+  <text x="68" y="257" class="framelabel">alt</text>
+  <text x="160" y="255" class="framelabel">[email already exists]</text>
+  <line x1="830" y1="278" x2="460" y2="278" stroke="#5c5878" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="480" y="273" class="msgret">409 Conflict — "account already exists" (the one place this leaks — a create endpoint, not login)</text>
+
+  <line x1="60" y1="295" x2="1360" y2="295" stroke="#1e40af" stroke-width="1.1" stroke-dasharray="6 3"/>
+  <text x="70" y="312" class="framelabel">[else — new email]</text>
+
+  <line x1="460" y1="335" x2="635" y2="335" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="328" class="msg">4. hash(password, ARGON2_OPTIONS)</text>
+  <text x="700" y="328" class="note">memoryCost 19456, timeCost 2</text>
+  <line x1="645" y1="360" x2="460" y2="360" stroke="#5c5878" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="480" y="354" class="msgret">passwordHash</text>
+
+  <line x1="460" y1="388" x2="825" y2="388" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="381" class="msg">5. tx: create Tenant + User(role=teacher)</text>
+  <text x="465" y="405" class="msg">6. create VerificationToken (hashed, 1h TTL) → DevEmailService logs it (no real provider)</text>
+
+  <!-- LOGIN band -->
+  <rect x="45" y="455" width="1330" height="380" rx="6" fill="#f5f5fb"/>
+  <text x="65" y="477" class="divider" text-anchor="start">B. LOGIN</text>
+
+  <line x1="95" y1="500" x2="250" y2="500" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="100" y="493" class="msg">7. POST /auth/login {email, password}</text>
+  <line x1="260" y1="525" x2="450" y2="525" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="265" y="518" class="msg">8. login(dto)</text>
+  <line x1="460" y1="550" x2="825" y2="550" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="543" class="msg">9. findUnique User by email</text>
+  <line x1="460" y1="580" x2="635" y2="580" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="573" class="msg">10. argon2.verify(passwordHash, password)</text>
+
+  <rect x="60" y="605" width="1300" height="205" fill="none" stroke="#1e40af" stroke-width="1.4"/>
+  <path d="M60,605 h85 v13 l-9,9 h-76 z" fill="#dbeafe" stroke="#1e40af" stroke-width="1.2"/>
+  <text x="68" y="622" class="framelabel">alt</text>
+  <text x="160" y="620" class="framelabel">[no account, OR wrong password]</text>
+  <line x1="455" y1="643" x2="255" y2="643" stroke="#5c5878" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="270" y="638" class="msgret">401 "Invalid email or password" — identical generic message either way</text>
+
+  <line x1="60" y1="660" x2="1360" y2="660" stroke="#1e40af" stroke-width="1.1" stroke-dasharray="6 3"/>
+  <text x="70" y="677" class="framelabel">[correct password, email NOT verified]</text>
+  <line x1="455" y1="692" x2="255" y2="692" stroke="#5c5878" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="270" y="687" class="msgret">403 "Please verify your email before logging in"</text>
+
+  <line x1="60" y1="710" x2="1360" y2="710" stroke="#1e40af" stroke-width="1.1" stroke-dasharray="6 3"/>
+  <text x="70" y="727" class="framelabel">[else — correct password, verified]</text>
+  <line x1="460" y1="745" x2="1020" y2="745" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="738" class="msg">11. signAsync(access token, 15 min TTL)</text>
+  <line x1="460" y1="770" x2="825" y2="770" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="763" class="msg">12. create Session (refreshTokenHash, 7-day TTL)</text>
+  <line x1="455" y1="795" x2="260" y2="795" stroke="#5c5878" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="270" y="790" class="msgret">200 {accessToken, refreshToken, user}</text>
+
+  <!-- REFRESH band -->
+  <rect x="45" y="850" width="1330" height="600" rx="6" fill="#f5f5fb"/>
+  <text x="65" y="872" class="divider" text-anchor="start">C. REFRESH — rotation (single-use)</text>
+
+  <line x1="95" y1="900" x2="250" y2="900" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="100" y="888" class="msg">13. POST /auth/refresh — refresh token cookie</text>
+  <text x="100" y="912" class="msg">    + X-CSRF-Token header</text>
+
+  <rect x="60" y="935" width="1300" height="130" fill="none" stroke="#1e40af" stroke-width="1.4"/>
+  <path d="M60,935 h85 v13 l-9,9 h-76 z" fill="#dbeafe" stroke="#1e40af" stroke-width="1.2"/>
+  <text x="68" y="952" class="framelabel">alt</text>
+  <text x="160" y="950" class="framelabel">[CsrfGuard: cookie ≠ header, OR HMAC signature invalid]</text>
+  <path d="M255,975 h20 v20 h-20" fill="none" stroke="#1e1c38" stroke-width="1.4" marker-end="url(#a1)"/>
+  <text x="280" y="980" class="msg">self-check inside AuthController (CsrfGuard)</text>
+  <line x1="255" y1="1015" x2="95" y2="1015" stroke="#5c5878" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="105" y="1010" class="msgret">403 Forbidden</text>
+
+  <line x1="60" y1="1055" x2="1360" y2="1055" stroke="#1e1c38" stroke-width="1.6"/>
+  <text x="70" y="1072" class="framelabel">[else — CSRF check passes]</text>
+
+  <line x1="260" y1="1105" x2="450" y2="1105" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="265" y="1098" class="msg">14. refresh(refreshToken)</text>
+  <line x1="460" y1="1130" x2="825" y2="1130" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="1123" class="msg">15. findUnique Session by refreshTokenHash</text>
+
+  <rect x="80" y="1155" width="1260" height="130" fill="none" stroke="#1e40af" stroke-width="1.4"/>
+  <path d="M80,1155 h85 v13 l-9,9 h-76 z" fill="#dbeafe" stroke="#1e40af" stroke-width="1.2"/>
+  <text x="88" y="1172" class="framelabel">alt</text>
+  <text x="180" y="1170" class="framelabel">[session revoked, expired, or not found]</text>
+  <line x1="455" y1="1195" x2="260" y2="1195" stroke="#5c5878" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="270" y="1190" class="msgret">401 "Invalid or expired refresh token"</text>
+
+  <line x1="80" y1="1212" x2="1340" y2="1212" stroke="#1e40af" stroke-width="1.1" stroke-dasharray="6 3"/>
+  <text x="90" y="1229" class="framelabel">[else — valid session]</text>
+  <line x1="460" y1="1250" x2="825" y2="1250" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="1243" class="msg">16. update Session SET revokedAt = now() — old token now a dead end</text>
+
+  <line x1="460" y1="1320" x2="1020" y2="1320" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="1313" class="msg">17. sign new access token</text>
+  <line x1="460" y1="1350" x2="825" y2="1350" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="465" y="1343" class="msg">18. create new Session (new refresh token, new 7-day TTL)</text>
+  <line x1="455" y1="1380" x2="260" y2="1380" stroke="#5c5878" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="270" y="1375" class="msgret">200 {accessToken, refreshToken} — even reuse of a stolen/stale token is now a dead end</text>
+
+  <rect x="45" y="1478" width="1330" height="35" rx="6" fill="#eff6ff" stroke="#1e40af" stroke-width="1.6"/>
+  <text x="60" y="1500" class="msg" font-weight="700">No tenancy check shown here — tenant scoping is per-service, per-query, not a step in auth itself. See 13-data-flow-threat-model.svg.</text>
+</svg>
