@@ -1,0 +1,163 @@
+<svg viewBox="0 0 1300 1480" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    .subtitle { fill: #5c5878; font-size: 12px; text-anchor: middle; }
+    .boxlabel { fill: #1e1c38; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .boxsub { fill: #5c5878; font-size: 10.5px; text-anchor: middle; }
+    .boxsubw { fill: #f4f1ff; font-size: 10.5px; text-anchor: middle; }
+    .diamondtext { fill: #1e1c38; font-size: 11.5px; text-anchor: middle; }
+    .rejectlabel { fill: #ffffff; font-size: 12px; font-weight: 700; text-anchor: middle; }
+    .arrowlabel { fill: #454263; font-size: 10.5px; text-anchor: middle; }
+    .yn { fill: #5c5878; font-size: 10.5px; text-anchor: middle; }
+    .note { fill: #5c5878; font-size: 11.5px; }
+    .notetitle { fill: #1e40af; font-size: 12.5px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="a13" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#454263"/></marker>
+    <marker id="a13r" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#dc2626"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1300" height="1480" fill="#ffffff"/>
+
+  <text x="650" y="26" class="title">Data Flow / Threat Model</text>
+  <text x="650" y="46" class="subtitle">Every boundary below is a real, currently-implemented defense from SECURITY_NOTES.md — not a generic checklist applied without checking what exists</text>
+
+  <!-- Browser -->
+  <rect x="570" y="58" width="160" height="42" rx="8" fill="#1e1c38"/>
+  <text x="650" y="84" class="boxlabel" fill="#ffffff">Browser</text>
+
+  <line x1="650" y1="100" x2="650" y2="122" stroke="#454263" stroke-width="1.5" marker-end="url(#a13)"/>
+  <text x="650" y="115" class="arrowlabel">HTTPS</text>
+
+  <!-- CSP boundary -->
+  <rect x="380" y="124" width="540" height="96" rx="8" fill="#eaf0fc" stroke="#1e40af" stroke-width="1.6"/>
+  <g stroke="#1e40af" stroke-width="1.6" fill="none"><path d="M650,138 l14,5 v13 c0,10 -7,15 -14,17 c-7,-2 -14,-7 -14,-17 v-13 z"/></g>
+  <text x="650" y="178" class="boxlabel">CSP boundary (apps/web)</text>
+  <text x="650" y="193" class="boxsub">script-src/style-src 'self' + 'unsafe-inline', font-src self + fonts.gstatic.com,</text>
+  <text x="650" y="206" class="boxsub">connect-src self + API origin only — blocks exfil to an unlisted origin</text>
+
+  <line x1="650" y1="220" x2="650" y2="242" stroke="#454263" stroke-width="1.5" marker-end="url(#a13)"/>
+
+  <!-- Web -->
+  <rect x="570" y="244" width="160" height="42" rx="8" fill="#1e1c38"/>
+  <text x="650" y="270" class="boxlabel" fill="#ffffff">Next.js web app</text>
+
+  <line x1="650" y1="286" x2="650" y2="308" stroke="#454263" stroke-width="1.5" marker-end="url(#a13)"/>
+  <text x="650" y="300" class="arrowlabel">Bearer JWT (access) + cookie (refresh)</text>
+
+  <!-- CORS boundary -->
+  <rect x="380" y="310" width="540" height="62" rx="8" fill="#e6f7f5" stroke="#0d9c8c" stroke-width="1.6"/>
+  <text x="650" y="333" class="boxlabel">CORS boundary (apps/api)</text>
+  <text x="650" y="350" class="boxsub">origin = required WEB_URL (no permissive fallback)</text>
+
+  <line x1="650" y1="372" x2="650" y2="394" stroke="#454263" stroke-width="1.5" marker-end="url(#a13)"/>
+
+  <!-- Rate limit boundary -->
+  <rect x="330" y="396" width="640" height="80" rx="8" fill="#fdf3e4" stroke="#d97f06" stroke-width="1.6"/>
+  <text x="650" y="418" class="boxlabel">Rate-limit boundary</text>
+  <text x="650" y="435" class="boxsub">AUTH_THROTTLE: register / login / forgot-password / join-code</text>
+  <text x="650" y="450" class="boxsub">GLOBAL_THROTTLE: everything else, including /auth/refresh</text>
+
+  <line x1="650" y1="476" x2="650" y2="498" stroke="#454263" stroke-width="1.5" marker-end="url(#a13)"/>
+
+  <!-- JwtGuard decision -->
+  <polygon points="650,500 850,558 650,616 450,558" fill="#f5f5fb" stroke="#3f30c4" stroke-width="1.5"/>
+  <text x="650" y="552" class="diamondtext">JwtAuthGuard: valid,</text>
+  <text x="650" y="566" class="diamondtext">unexpired JWT?</text>
+
+  <line x1="850" y1="558" x2="985" y2="558" stroke="#dc2626" stroke-width="1.5" marker-end="url(#a13r)"/>
+  <text x="915" y="550" class="yn" fill="#dc2626">no</text>
+  <rect x="990" y="536" width="150" height="44" rx="8" fill="#dc2626"/>
+  <text x="1065" y="563" class="rejectlabel">401 Unauthorized</text>
+
+  <line x1="650" y1="616" x2="650" y2="638" stroke="#16a34a" stroke-width="1.5" marker-end="url(#a13)"/>
+  <text x="678" y="630" class="yn" fill="#16a34a">yes</text>
+
+  <!-- CsrfCheck decision -->
+  <polygon points="650,640 870,706 650,772 430,706" fill="#f5f5fb" stroke="#3f30c4" stroke-width="1.5"/>
+  <text x="650" y="698" class="diamondtext">Cookie-authenticated</text>
+  <text x="650" y="712" class="diamondtext">endpoint? (refresh/logout)</text>
+
+  <line x1="650" y1="772" x2="650" y2="794" stroke="#16a34a" stroke-width="1.5" marker-end="url(#a13)"/>
+  <text x="678" y="786" class="yn" fill="#16a34a">yes</text>
+
+  <!-- CsrfGuard decision -->
+  <polygon points="650,796 870,862 650,928 430,862" fill="#f5f5fb" stroke="#3f30c4" stroke-width="1.5"/>
+  <text x="650" y="850" class="diamondtext">CsrfGuard: cookie token</text>
+  <text x="650" y="864" class="diamondtext">== header token,</text>
+  <text x="650" y="878" class="diamondtext">HMAC-valid?</text>
+
+  <line x1="870" y1="862" x2="985" y2="862" stroke="#dc2626" stroke-width="1.5" marker-end="url(#a13r)"/>
+  <text x="925" y="854" class="yn" fill="#dc2626">no</text>
+  <rect x="990" y="840" width="150" height="44" rx="8" fill="#dc2626"/>
+  <text x="1065" y="867" class="rejectlabel">403 Forbidden</text>
+
+  <!-- CsrfCheck "no" bypasses CsrfGuard straight to Service -->
+  <path d="M430,706 C230,706 230,980 560,1004" fill="none" stroke="#454263" stroke-width="1.5" marker-end="url(#a13)"/>
+  <text x="270" y="850" class="yn">no (not cookie-authenticated)</text>
+
+  <!-- CsrfGuard "yes" down to Service -->
+  <line x1="650" y1="928" x2="650" y2="998" stroke="#16a34a" stroke-width="1.5" marker-end="url(#a13)"/>
+  <text x="678" y="965" class="yn" fill="#16a34a">yes</text>
+
+  <!-- Service -->
+  <rect x="540" y="1000" width="220" height="50" rx="8" fill="#4f3fe0"/>
+  <text x="650" y="1030" class="boxlabel" fill="#ffffff">Feature module service</text>
+
+  <!-- Fan-out arrows to 5 boundary boxes -->
+  <path d="M600,1050 C400,1090 220,1110 150,1128" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a13)"/>
+  <path d="M630,1050 C520,1090 430,1110 400,1128" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a13)"/>
+  <line x1="670" y1="1050" x2="670" y2="1128" stroke="#454263" stroke-width="1.4" marker-end="url(#a13)"/>
+  <path d="M700,1050 C820,1090 900,1110 930,1128" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a13)"/>
+  <path d="M730,1050 C980,1090 1120,1110 1170,1128" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a13)"/>
+
+  <!-- Row of 5 boundary boxes -->
+  <rect x="20" y="1130" width="260" height="100" rx="8" fill="#eaf0fc" stroke="#1e40af" stroke-width="1.5"/>
+  <text x="150" y="1150" class="boxlabel">Tenant-scope boundary</text>
+  <text x="150" y="1166" class="boxsub">(per-service, not a global guard)</text>
+  <text x="150" y="1181" class="boxsub">every query: WHERE tenantId</text>
+  <text x="150" y="1195" class="boxsub">= ctx.tenantId</text>
+  <text x="150" y="1213" class="boxsub" font-weight="700">cross-tenant → 404, never 403</text>
+
+  <line x1="150" y1="1230" x2="150" y2="1258" stroke="#454263" stroke-width="1.4" marker-end="url(#a13)"/>
+  <g>
+    <path d="M100,1270 a50,10 0 0 0 100,0 v55 a50,10 0 0 1 -100,0 z" fill="#1e40af"/>
+    <ellipse cx="150" cy="1270" rx="50" ry="10" fill="#3357c9"/>
+    <text x="150" y="1310" class="boxsub" fill="#ffffff" font-weight="700">Postgres</text>
+  </g>
+
+  <rect x="290" y="1130" width="260" height="100" rx="8" fill="#e6f7f5" stroke="#0d9c8c" stroke-width="1.5"/>
+  <text x="420" y="1150" class="boxlabel">Answer-key boundary</text>
+  <text x="420" y="1166" class="boxsub">(attempts.service.ts)</text>
+  <text x="420" y="1182" class="boxsub">correctAnswer / isCorrect /</text>
+  <text x="420" y="1197" class="boxsub">pointsAwarded stripped until</text>
+  <text x="420" y="1212" class="boxsub">status = submitted</text>
+
+  <rect x="560" y="1130" width="260" height="100" rx="8" fill="#fdf3e4" stroke="#d97f06" stroke-width="1.5"/>
+  <text x="690" y="1150" class="boxlabel">CSV formula-injection</text>
+  <text x="690" y="1166" class="boxsub">(report-formula.ts toCsv)</text>
+  <text x="690" y="1182" class="boxsub">leading =/+/-/@ → prefixed</text>
+  <text x="690" y="1197" class="boxsub">with ' before RFC 4180</text>
+  <text x="690" y="1212" class="boxsub">escaping</text>
+
+  <rect x="830" y="1130" width="260" height="100" rx="8" fill="#f1effe" stroke="#4f3fe0" stroke-width="1.5"/>
+  <text x="960" y="1150" class="boxlabel">Input validation boundary</text>
+  <text x="960" y="1170" class="boxsub">class-validator DTOs,</text>
+  <text x="960" y="1186" class="boxsub">global ValidationPipe</text>
+
+  <rect x="1100" y="1130" width="180" height="100" rx="8" fill="#f4f4f7" stroke="#5c5878" stroke-width="1.5"/>
+  <text x="1190" y="1150" class="boxlabel">SecurityLogger</text>
+  <text x="1190" y="1168" class="boxsub">auth events, permission</text>
+  <text x="1190" y="1182" class="boxsub">denials, audited mutations</text>
+  <text x="1190" y="1200" class="boxsub" font-weight="700">never plaintext secrets</text>
+  <text x="1190" y="1214" class="boxsub" font-weight="700">or answers</text>
+
+  <!-- Not-a-boundary note -->
+  <rect x="20" y="1350" width="1260" height="70" rx="8" fill="#fdecec" stroke="#dc2626" stroke-width="1.4"/>
+  <text x="38" y="1372" class="notetitle" fill="#dc2626">What's deliberately NOT a boundary here</text>
+  <text x="38" y="1391" class="note">There is no tenant-context middleware or global authorization guard — tenant scoping is enforced inside each</text>
+  <text x="38" y="1406" class="note">service's own Prisma query, module by module. A real architectural fact, not a simplification — see 05-component-diagram.md.</text>
+
+  <!-- Source footer -->
+  <rect x="20" y="1430" width="1260" height="42" rx="8" fill="#ffffff" stroke="#454263" stroke-width="1.4"/>
+  <text x="38" y="1454" class="note">Source: SECURITY_NOTES.md in full; guards/jwt-auth.guard.ts + csrf.guard.ts; app.module.ts throttlers; attempts.service.ts; report-formula.ts; next.config.js CSP.</text>
+</svg>
