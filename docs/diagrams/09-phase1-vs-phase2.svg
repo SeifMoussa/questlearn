@@ -1,0 +1,164 @@
+<svg viewBox="0 0 1400 800" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    .subtitle { fill: #5c5878; font-size: 12.5px; text-anchor: middle; }
+    .panelhdr { fill: #1e1c38; font-size: 15px; font-weight: 700; text-anchor: middle; }
+    .rowlabel { fill: #1e1c38; font-size: 13px; font-weight: 600; }
+    .rowsub { fill: #5c5878; font-size: 10.5px; }
+    .icontxt { fill: #ffffff; font-size: 11px; }
+    .note { fill: #5c5878; font-size: 11.5px; }
+    .notetitle { fill: #1e40af; font-size: 12.5px; font-weight: 700; }
+    .arrowlabel { fill: #454263; font-size: 11px; text-anchor: middle; font-style: italic; }
+  </style>
+  <defs>
+    <marker id="a9" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#5c5878"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1400" height="800" fill="#ffffff"/>
+
+  <text x="700" y="30" class="title">Phase 1 (Built) vs. Phase 2 (Deferred)</text>
+  <text x="700" y="52" class="subtitle">MVP boundary from Master Spec §4 — Modules 0–10 complete and merged; Module 11 (Live Sessions) not started (confirmed by grep: no gateway, no session-PIN model, no socket.io/ws dependency)</text>
+
+  <!-- Phase 1 panel -->
+  <rect x="40" y="75" width="600" height="655" rx="10" fill="#eef6ec" stroke="#16a34a" stroke-width="2"/>
+  <text x="340" y="102" class="panelhdr" fill="#16a34a">Phase 1 — MVP (Modules 0–10, built)</text>
+
+  <!-- 10 module rows, x=60 w=560, start y=118 step 54 h=46 -->
+  <!-- row template icon circle cx=95 -->
+  <g>
+    <rect x="60" y="118" width="560" height="46" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.3"/>
+    <circle cx="95" cy="141" r="16" fill="#1e40af"/>
+    <g stroke="#ffffff" stroke-width="1.6" fill="none"><rect x="89" y="139" width="12" height="9" rx="1.5"/><path d="M91,139 v-3 a4,4 0 0 1 8,0 v3"/></g>
+    <text x="122" y="136" class="rowlabel">Auth</text>
+    <text x="122" y="150" class="rowsub">register, verify, login, JWT + refresh, CSRF</text>
+  </g>
+  <g>
+    <rect x="60" y="172" width="560" height="46" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.3"/>
+    <circle cx="95" cy="195" r="16" fill="#1e40af"/>
+    <g stroke="#ffffff" stroke-width="1.4" fill="none"><circle cx="90" cy="190" r="4"/><circle cx="100" cy="190" r="4"/><path d="M83,202 q7,-7 14,0"/><path d="M93,202 q7,-7 14,0"/></g>
+    <text x="122" y="190" class="rowlabel">Classes</text>
+    <text x="122" y="204" class="rowsub">join codes, roster management</text>
+  </g>
+  <g>
+    <rect x="60" y="226" width="560" height="46" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.3"/>
+    <circle cx="95" cy="249" r="16" fill="#0d9c8c"/>
+    <g stroke="#ffffff" stroke-width="1.4" fill="none"><rect x="89" y="243" width="12" height="14" rx="1.2"/><line x1="91.5" y1="247" x2="98.5" y2="247"/><line x1="91.5" y1="251" x2="98.5" y2="251"/></g>
+    <text x="122" y="244" class="rowlabel">Question bank</text>
+    <text x="122" y="258" class="rowsub">versioned, immutable published versions</text>
+  </g>
+  <g>
+    <rect x="60" y="280" width="560" height="46" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.3"/>
+    <circle cx="95" cy="303" r="16" fill="#0d9c8c"/>
+    <g stroke="#ffffff" stroke-width="1.4" fill="none"><rect x="89" y="297" width="12" height="14" rx="1.2"/><rect x="92" y="295" width="6" height="4" fill="#ffffff"/></g>
+    <text x="122" y="298" class="rowlabel">Activities</text>
+    <text x="122" y="312" class="rowsub">draft → publish (immutable, pinned content)</text>
+  </g>
+  <g>
+    <rect x="60" y="334" width="560" height="46" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.3"/>
+    <circle cx="95" cy="357" r="16" fill="#4f3fe0"/>
+    <g stroke="#ffffff" stroke-width="1.4" fill="none"><rect x="88" y="350" width="14" height="13" rx="1.5"/><line x1="88" y1="354" x2="102" y2="354"/><line x1="91" y1="348" x2="91" y2="352"/><line x1="99" y1="348" x2="99" y2="352"/></g>
+    <text x="122" y="352" class="rowlabel">Assignments &amp; attempts</text>
+    <text x="122" y="366" class="rowsub">async, autosaved, idempotent submit()</text>
+  </g>
+  <g>
+    <rect x="60" y="388" width="560" height="46" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.3"/>
+    <circle cx="95" cy="411" r="16" fill="#a855f7"/>
+    <g stroke="#ffffff" stroke-width="1.6" fill="none"><line x1="89" y1="416" x2="89" y2="406"/><line x1="94" y1="416" x2="94" y2="401"/><line x1="99" y1="416" x2="99" y2="410"/></g>
+    <text x="122" y="406" class="rowlabel">Mastery</text>
+    <text x="122" y="420" class="rowsub">live-computed, recency-weighted</text>
+  </g>
+  <g>
+    <rect x="60" y="442" width="560" height="46" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.3"/>
+    <circle cx="95" cy="465" r="16" fill="#d97f06"/>
+    <g stroke="#ffffff" stroke-width="1.5" fill="none"><rect x="88" y="459" width="14" height="10" rx="2"/><circle cx="92" cy="464" r="1" fill="#ffffff" stroke="none"/><circle cx="98" cy="464" r="1" fill="#ffffff" stroke="none"/></g>
+    <text x="122" y="460" class="rowlabel">Gamification</text>
+    <text x="122" y="474" class="rowsub">XP, levels, badges</text>
+  </g>
+  <g>
+    <rect x="60" y="496" width="560" height="46" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.3"/>
+    <circle cx="95" cy="519" r="16" fill="#dc2626"/>
+    <g stroke="#ffffff" stroke-width="1.6" fill="none"><line x1="89" y1="527" x2="89" y2="511"/><path d="M89,512 h11 l-3,4 l3,4 h-11 z" fill="#ffffff"/></g>
+    <text x="122" y="514" class="rowlabel">Quests</text>
+    <text x="122" y="528" class="rowsub">linear, gated steps (activity- and mastery-gated)</text>
+  </g>
+  <g>
+    <rect x="60" y="550" width="560" height="46" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.3"/>
+    <circle cx="95" cy="573" r="16" fill="#1e40af"/>
+    <g fill="#ffffff"><rect x="89" y="571" width="4" height="8"/><rect x="95" y="565" width="4" height="14"/><rect x="101" y="575" width="4" height="4"/></g>
+    <text x="122" y="568" class="rowlabel">Reporting</text>
+    <text x="122" y="582" class="rowsub">class dashboards, CSV export, question analysis</text>
+  </g>
+  <g>
+    <rect x="60" y="604" width="560" height="46" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.3"/>
+    <circle cx="95" cy="627" r="16" fill="#1e1c38"/>
+    <g stroke="#ffffff" stroke-width="1.5" fill="none"><path d="M95,619 l8,3 v7 c0,4 -4,6 -8,7 c-4,-1 -8,-3 -8,-7 v-7 z"/></g>
+    <text x="122" y="622" class="rowlabel">Hardening</text>
+    <text x="122" y="636" class="rowsub">security headers, CSP, a11y pass, production Docker images</text>
+  </g>
+
+  <!-- Phase 2 panel -->
+  <rect x="760" y="75" width="600" height="655" rx="10" fill="#f4f4f7" stroke="#8a8598" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="1060" y="102" class="panelhdr" fill="#5c5878">Phase 2 — Module 11, Live Sessions (deferred, not started)</text>
+
+  <g opacity="0.85">
+    <rect x="780" y="118" width="560" height="46" rx="8" fill="#ffffff" stroke="#8a8598" stroke-width="1.3" stroke-dasharray="5 4"/>
+    <circle cx="815" cy="141" r="16" fill="#8a8598"/>
+    <text x="815" y="146" class="icontxt" text-anchor="middle">WS</text>
+    <text x="842" y="146" class="rowlabel">WebSocket gateway</text>
+  </g>
+  <g opacity="0.85">
+    <rect x="780" y="172" width="560" height="46" rx="8" fill="#ffffff" stroke="#8a8598" stroke-width="1.3" stroke-dasharray="5 4"/>
+    <circle cx="815" cy="195" r="16" fill="#8a8598"/>
+    <text x="815" y="200" class="icontxt" text-anchor="middle">PIN</text>
+    <text x="842" y="200" class="rowlabel">Session PINs + host lobby</text>
+  </g>
+  <g opacity="0.85">
+    <rect x="780" y="226" width="560" height="46" rx="8" fill="#ffffff" stroke="#8a8598" stroke-width="1.3" stroke-dasharray="5 4"/>
+    <circle cx="815" cy="249" r="16" fill="#8a8598"/>
+    <g stroke="#ffffff" stroke-width="1.5" fill="none"><path d="M809,249 a6,6 0 1 1 3,5"/><path d="M815,251 l-3,3 l0,-5 z" fill="#ffffff"/></g>
+    <text x="842" y="254" class="rowlabel">Reconnection handling</text>
+  </g>
+  <g opacity="0.85">
+    <rect x="780" y="280" width="560" height="46" rx="8" fill="#ffffff" stroke="#8a8598" stroke-width="1.3" stroke-dasharray="5 4"/>
+    <circle cx="815" cy="303" r="16" fill="#8a8598"/>
+    <text x="815" y="308" class="icontxt" text-anchor="middle">RT</text>
+    <text x="842" y="308" class="rowlabel">Real-time scoring</text>
+  </g>
+  <g opacity="0.85">
+    <rect x="780" y="334" width="560" height="46" rx="8" fill="#ffffff" stroke="#8a8598" stroke-width="1.3" stroke-dasharray="5 4"/>
+    <circle cx="815" cy="357" r="16" fill="#8a8598"/>
+    <g stroke="#ffffff" stroke-width="1.5" fill="none"><rect x="809" y="351" width="12" height="10" rx="1.5"/><line x1="812" y1="355" x2="818" y2="355"/></g>
+    <text x="842" y="362" class="rowlabel">Host controls</text>
+  </g>
+  <g opacity="0.85">
+    <rect x="780" y="388" width="560" height="46" rx="8" fill="#ffffff" stroke="#8a8598" stroke-width="1.3" stroke-dasharray="5 4"/>
+    <circle cx="815" cy="411" r="16" fill="#8a8598"/>
+    <g stroke="#ffffff" stroke-width="1.5" fill="none"><ellipse cx="815" cy="411" rx="7" ry="3.5"/><ellipse cx="815" cy="411" rx="3.5" ry="7"/></g>
+    <text x="842" y="416" class="rowlabel">Redis pub/sub</text>
+    <text x="842" y="429" class="rowsub">for horizontal socket scaling</text>
+  </g>
+
+  <!-- Why waits note, inside Phase 2 panel remaining space -->
+  <rect x="780" y="452" width="560" height="198" rx="8" fill="#f1effe" stroke="#4f3fe0" stroke-width="1.4"/>
+  <text x="798" y="475" class="notetitle">Why Phase 2 waits</text>
+  <text x="798" y="496" class="note">Live/synchronous sessions are a genuinely different</text>
+  <text x="798" y="513" class="note">complexity class — stateful rooms, reconnection,</text>
+  <text x="798" y="530" class="note">duplicate real-time submissions, shared-screen</text>
+  <text x="798" y="547" class="note">privacy, horizontal socket scaling — deliberately kept</text>
+  <text x="798" y="564" class="note">out of the async core so that core could be finished,</text>
+  <text x="798" y="581" class="note">tested, and hardened first.</text>
+  <text x="798" y="605" class="note">The schema and module boundaries were designed to</text>
+  <text x="798" y="622" class="note">be live-session-ready (every table already carries</text>
+  <text x="798" y="639" class="note">tenantId; Redis is already provisioned) — but nothing</text>
+
+  <text x="798" y="656" class="note" font-style="italic">Phase-2-specific has been built.</text>
+
+  <!-- Arrow between panels -->
+  <line x1="655" y1="400" x2="745" y2="400" stroke="#5c5878" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a9)"/>
+  <text x="700" y="378" class="arrowlabel">async, request/response —</text>
+  <text x="700" y="422" class="arrowlabel">the model Phase 2 must</text>
+  <text x="700" y="437" class="arrowlabel">not break, only add alongside</text>
+
+  <!-- Source footer -->
+  <rect x="40" y="748" width="1320" height="42" rx="8" fill="#ffffff" stroke="#454263" stroke-width="1.4"/>
+  <text x="58" y="774" class="note">Source: Master Spec §4 ("In scope, Phase 2") and §12 (module roadmap); confirmed empty by grep across apps/api/src and package.json for WebSocket/session-PIN/gateway code.</text>
+</svg>

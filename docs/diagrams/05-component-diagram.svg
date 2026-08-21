@@ -1,0 +1,95 @@
+<svg viewBox="0 0 1400 620" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    .grouph { fill: #1e1c38; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .modlabel { fill: #1e1c38; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .arrowlabel { fill: #454263; font-size: 10px; }
+    .note { fill: #5c5878; font-size: 11.5px; }
+    .notetitle { fill: #1e40af; font-size: 12.5px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="a1" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#454263"/></marker>
+    <marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#9ca3af"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1400" height="620" fill="#ffffff"/>
+  <text x="700" y="30" class="title">5. Component Diagram — 11 Real NestJS Modules</text>
+
+  <!-- Group 1: Auth & Tenancy -->
+  <rect x="30" y="60" width="200" height="380" rx="10" fill="#eff6ff" stroke="#1e40af" stroke-width="2"/>
+  <text x="130" y="82" class="grouph">Auth &amp; Tenancy</text>
+  <rect x="55" y="120" width="150" height="60" rx="8" fill="#1e40af"/>
+  <text x="130" y="155" class="modlabel" fill="#ffffff">auth</text>
+  <rect x="55" y="340" width="150" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.8"/>
+  <text x="130" y="375" class="modlabel">classes</text>
+  <line x1="130" y1="340" x2="130" y2="180" stroke="#1e40af" stroke-width="1.4" marker-end="url(#a1)"/>
+
+  <!-- Group 2: Content Authoring -->
+  <rect x="255" y="60" width="220" height="380" rx="10" fill="#ebfbef" stroke="#16a34a" stroke-width="2"/>
+  <text x="365" y="82" class="grouph">Content Authoring</text>
+  <rect x="280" y="110" width="170" height="55" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.8"/>
+  <text x="365" y="142" class="modlabel">questions</text>
+  <rect x="280" y="190" width="170" height="55" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.8"/>
+  <text x="365" y="222" class="modlabel">activities</text>
+  <rect x="280" y="270" width="170" height="55" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.8"/>
+  <text x="365" y="302" class="modlabel">concepts</text>
+
+  <!-- Group 3: Assessment -->
+  <rect x="500" y="60" width="220" height="380" rx="10" fill="#fff6e8" stroke="#d97f06" stroke-width="2"/>
+  <text x="610" y="82" class="grouph">Assessment</text>
+  <rect x="525" y="110" width="170" height="55" rx="8" fill="#ffffff" stroke="#d97f06" stroke-width="1.8"/>
+  <text x="610" y="142" class="modlabel">assignments</text>
+  <rect x="525" y="330" width="170" height="70" rx="8" fill="#d97f06"/>
+  <text x="610" y="370" class="modlabel" fill="#ffffff">attempts</text>
+
+  <!-- Group 4: Engagement -->
+  <rect x="745" y="60" width="220" height="380" rx="10" fill="#eafbf8" stroke="#0d9c8c" stroke-width="2"/>
+  <text x="855" y="82" class="grouph">Engagement</text>
+  <rect x="770" y="110" width="170" height="55" rx="8" fill="#ffffff" stroke="#0d9c8c" stroke-width="1.8"/>
+  <text x="855" y="142" class="modlabel">mastery</text>
+  <rect x="770" y="190" width="170" height="55" rx="8" fill="#ffffff" stroke="#0d9c8c" stroke-width="1.8"/>
+  <text x="855" y="222" class="modlabel">gamification</text>
+  <rect x="770" y="270" width="170" height="55" rx="8" fill="#ffffff" stroke="#0d9c8c" stroke-width="1.8"/>
+  <text x="855" y="302" class="modlabel">quests</text>
+
+  <!-- Group 5: Reporting -->
+  <rect x="990" y="60" width="200" height="380" rx="10" fill="#f1effe" stroke="#4f3fe0" stroke-width="2"/>
+  <text x="1090" y="82" class="grouph">Reporting</text>
+  <rect x="1015" y="190" width="150" height="55" rx="8" fill="#ffffff" stroke="#4f3fe0" stroke-width="1.8"/>
+  <text x="1090" y="222" class="modlabel">reports</text>
+
+  <!-- Distinctive edges (not the universal Auth dependency) -->
+  <!-- Gamification -> Mastery -->
+  <line x1="855" y1="190" x2="855" y2="165" stroke="#454263" stroke-width="1.4" marker-end="url(#a1)"/>
+  <!-- Quests -> Mastery -->
+  <path d="M855,270 C855,220 855,220 855,165" fill="none" stroke="#454263" stroke-width="1.4" marker-end="url(#a1)" stroke-dasharray="0" transform="translate(15,0)"/>
+  <text x="878" y="230" class="arrowlabel">quests →</text>
+  <text x="878" y="241" class="arrowlabel">mastery</text>
+
+  <!-- Attempts -> Mastery, Gamification, Quests -->
+  <path d="M695,345 C740,345 740,142 768,142" fill="none" stroke="#d97f06" stroke-width="1.5" marker-end="url(#a1)"/>
+  <path d="M695,360 C745,360 745,222 768,222" fill="none" stroke="#d97f06" stroke-width="1.5" marker-end="url(#a1)"/>
+  <path d="M695,375 C750,375 750,297 768,297" fill="none" stroke="#d97f06" stroke-width="1.5" marker-end="url(#a1)"/>
+  <text x="700" y="415" class="arrowlabel" fill="#d97f06">attempts → mastery, gamification, quests</text>
+  <text x="700" y="428" class="arrowlabel" fill="#d97f06">(same transaction as grading)</text>
+
+  <!-- Reports -> Mastery, Gamification, Quests -->
+  <path d="M1015,215 C960,215 960,142 942,142" fill="none" stroke="#4f3fe0" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <path d="M1015,225 C955,225 955,222 942,222" fill="none" stroke="#4f3fe0" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <path d="M1015,235 C950,235 950,297 942,297" fill="none" stroke="#4f3fe0" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="960" y="440" class="arrowlabel" fill="#4f3fe0">reports reads/composes</text>
+  <text x="960" y="452" class="arrowlabel" fill="#4f3fe0">mastery, gamification, quests</text>
+
+  <!-- Universal Auth dependency note -->
+  <path d="M230,150 C245,150 260,350 200,375" fill="none" stroke="#9ca3af" stroke-width="1.6" stroke-dasharray="3 3" marker-end="url(#a2)"/>
+  <text x="235" y="465" class="note">↖ All 10 other modules import AuthModule</text>
+  <text x="235" y="480" class="note">(JwtAuthGuard/CsrfGuard) — universal dependency,</text>
+  <text x="235" y="495" class="note">not drawn as 10 separate lines for readability.</text>
+
+  <!-- Notes box -->
+  <rect x="30" y="460" width="1340" height="140" rx="8" fill="#ffffff" stroke="#454263" stroke-width="1.6"/>
+  <text x="48" y="484" class="notetitle">Not built as separate modules — despite appearing as distinct boxes in the original planning sketch</text>
+  <text x="48" y="506" class="note">• Scoring — scoreQuestion()/overallScore() are plain functions in attempts/scoring.ts, used only by AttemptsModule. Never split out: nothing outside attempts grading calls them.</text>
+  <text x="48" y="524" class="note">• Tenancy — no TenancyModule or global tenant-context guard. Every service enforces tenant scoping itself, per-query (see 13-data-flow-threat-model.svg).</text>
+  <text x="48" y="542" class="note">• Notifications, Audit — FR#11/FR#12 in the master spec, explicitly deferred. No module, table, or trigger call anywhere in the codebase.</text>
+  <text x="48" y="564" class="note">Source: apps/api/src/*/*.module.ts — every edge above is a literal imports: [...] entry, confirmed by grepping all 11 module files.</text>
+</svg>

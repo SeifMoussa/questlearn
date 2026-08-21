@@ -1,0 +1,169 @@
+<svg viewBox="0 0 1560 1220" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    .plabel { fill: #1e1c38; font-size: 12.5px; font-weight: 700; text-anchor: middle; }
+    .psub { fill: #5c5878; font-size: 10px; text-anchor: middle; }
+    .msg { fill: #1e1c38; font-size: 12px; }
+    .msgret { fill: #5c5878; font-size: 11.5px; font-style: italic; }
+    .divider { fill: #3f30c4; font-size: 12px; font-weight: 700; text-anchor: middle; }
+    .framelabel { fill: #1e40af; font-size: 12px; font-weight: 700; }
+    .note { fill: #5c5878; font-size: 11px; font-style: italic; }
+    .guarantee { fill: #1e1c38; font-size: 13px; font-weight: 600; }
+  </style>
+  <defs>
+    <marker id="a1" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#1e1c38"/></marker>
+    <marker id="a2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#5c5878"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1560" height="1220" fill="#ffffff"/>
+  <text x="780" y="30" class="title">2. Submission Pipeline — Sequence Diagram</text>
+
+  <!-- Lifeline headers: x positions -->
+  <!-- Learner=90 API=270 Svc=470 DB=700 Scoring=880 Mastery=1040 Gamification=1210 Quests=1400 -->
+
+  <g id="headers">
+    <!-- Learner -->
+    <rect x="45" y="55" width="90" height="45" rx="6" fill="#eafbf8" stroke="#166534" stroke-width="1.6"/>
+    <text x="90" y="73" class="plabel">Learner</text>
+    <text x="90" y="88" class="psub">actor</text>
+    <!-- API -->
+    <rect x="215" y="55" width="110" height="45" rx="6" fill="#eff6ff" stroke="#1e40af" stroke-width="1.6"/>
+    <text x="270" y="73" class="plabel">API Controller</text>
+    <text x="270" y="88" class="psub">AttemptsController</text>
+    <!-- Svc -->
+    <rect x="410" y="55" width="120" height="45" rx="6" fill="#fff6e8" stroke="#d97f06" stroke-width="1.6"/>
+    <text x="470" y="73" class="plabel">AttemptsService</text>
+    <text x="470" y="88" class="psub">submit()</text>
+    <!-- DB -->
+    <rect x="635" y="55" width="130" height="45" rx="6" fill="#f1effe" stroke="#4f3fe0" stroke-width="1.6"/>
+    <text x="700" y="73" class="plabel">PostgreSQL</text>
+    <text x="700" y="88" class="psub">one transaction</text>
+    <!-- Scoring -->
+    <rect x="825" y="55" width="110" height="45" rx="6" fill="#fff6e8" stroke="#d97f06" stroke-width="1.6"/>
+    <text x="880" y="73" class="plabel">scoring.ts</text>
+    <text x="880" y="88" class="psub">plain functions</text>
+    <!-- Mastery -->
+    <rect x="985" y="55" width="110" height="45" rx="6" fill="#eafbf8" stroke="#0d9c8c" stroke-width="1.6"/>
+    <text x="1040" y="73" class="plabel">MasteryService</text>
+    <!-- Gamification -->
+    <rect x="1150" y="55" width="120" height="45" rx="6" fill="#eafbf8" stroke="#0d9c8c" stroke-width="1.6"/>
+    <text x="1210" y="73" class="plabel">GamificationService</text>
+    <!-- Quests -->
+    <rect x="1345" y="55" width="110" height="45" rx="6" fill="#eafbf8" stroke="#0d9c8c" stroke-width="1.6"/>
+    <text x="1400" y="73" class="plabel">QuestsService</text>
+  </g>
+
+  <!-- Lifelines -->
+  <g stroke="#cfcce3" stroke-width="1.5" stroke-dasharray="4 3">
+    <line x1="90" y1="100" x2="90" y2="1160"/>
+    <line x1="270" y1="100" x2="270" y2="1160"/>
+    <line x1="470" y1="100" x2="470" y2="1160"/>
+    <line x1="700" y1="100" x2="700" y2="1160"/>
+    <line x1="880" y1="100" x2="880" y2="1160"/>
+    <line x1="1040" y1="100" x2="1040" y2="1160"/>
+    <line x1="1210" y1="100" x2="1210" y2="1160"/>
+    <line x1="1400" y1="100" x2="1400" y2="1160"/>
+  </g>
+
+  <!-- Activation bar: Svc active almost the whole diagram -->
+  <rect x="465" y="140" width="10" height="990" fill="#fde8c8" stroke="#d97f06" stroke-width="1"/>
+
+  <!-- Row 1: Learner -> API -->
+  <line x1="95" y1="150" x2="265" y2="150" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="100" y="143" class="msg">1. POST /attempts/:id/submit</text>
+
+  <!-- Row 2: API -> Svc -->
+  <line x1="275" y1="185" x2="463" y2="185" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="280" y="178" class="msg">2. submit(ctx, attemptId)</text>
+
+  <!-- Row 3: Svc -> DB -->
+  <line x1="475" y1="220" x2="693" y2="220" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="480" y="213" class="msg">3. findFirst Attempt (tenant + learner scoped)</text>
+  <!-- Row 4: DB --> Svc -->
+  <line x1="700" y1="250" x2="480" y2="250" stroke="#5c5878" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="500" y="244" class="msgret">attempt row</text>
+
+  <!-- BEGIN TRANSACTION divider -->
+  <line x1="60" y1="275" x2="1500" y2="275" stroke="#3f30c4" stroke-width="1.2" stroke-dasharray="2 4"/>
+  <rect x="670" y="263" width="180" height="20" fill="#ffffff"/>
+  <text x="760" y="278" class="divider">BEGIN TRANSACTION</text>
+
+  <!-- Row 5: Svc -> DB claim -->
+  <line x1="475" y1="310" x2="693" y2="310" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="480" y="303" class="msg">4. updateMany WHERE id=? AND status='in_progress'</text>
+  <text x="480" y="319" class="msg">   SET status='submitted', submittedAt=now()</text>
+
+  <!-- Alt frame -->
+  <rect x="440" y="345" width="1000" height="590" fill="none" stroke="#1e40af" stroke-width="1.6"/>
+  <path d="M440,345 h90 v14 l-10,10 h-80 z" fill="#dbeafe" stroke="#1e40af" stroke-width="1.4"/>
+  <text x="450" y="365" class="framelabel">alt</text>
+  <text x="545" y="363" class="framelabel">[claim.count === 0 — already submitted, or lost the race]</text>
+
+  <!-- Branch A -->
+  <line x1="700" y1="400" x2="480" y2="400" stroke="#5c5878" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="500" y="394" class="msgret">count = 0</text>
+  <text x="480" y="425" class="note">Skip grading entirely — no re-grade, no error. Returns the</text>
+  <text x="480" y="440" class="note">already-committed result from the winning caller.</text>
+
+  <line x1="440" y1="460" x2="1440" y2="460" stroke="#1e40af" stroke-width="1.2" stroke-dasharray="6 3"/>
+  <text x="450" y="478" class="framelabel">[else — claim.count === 1, this call won]</text>
+
+  <!-- Branch B -->
+  <line x1="700" y1="510" x2="480" y2="510" stroke="#5c5878" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="500" y="504" class="msgret">count = 1</text>
+
+  <rect x="875" y="540" width="10" height="80" fill="#fde8c8" stroke="#d97f06" stroke-width="1"/>
+  <line x1="475" y1="550" x2="873" y2="550" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="480" y="543" class="msg">5. scoreQuestion() — for each ActivityQuestion</text>
+  <line x1="880" y1="590" x2="480" y2="590" stroke="#5c5878" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="500" y="584" class="msgret">isCorrect, pointsAwarded per question</text>
+
+  <line x1="475" y1="630" x2="693" y2="630" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="480" y="623" class="msg">6. update AttemptResponse rows + Attempt.score</text>
+  <text x="480" y="639" class="msg">   (overallScore(graded))</text>
+
+  <rect x="1035" y="660" width="10" height="90" fill="#d5f2ee" stroke="#0d9c8c" stroke-width="1"/>
+  <line x1="475" y1="670" x2="1033" y2="670" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="480" y="663" class="msg">7. recordEvidenceForAttempt(tx, ctx, graded) — MasteryService</text>
+  <line x1="1040" y1="700" x2="700" y2="700" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="720" y="693" class="msg">insert MasteryEvidence rows</text>
+  <line x1="1040" y1="740" x2="480" y2="740" stroke="#5c5878" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="500" y="734" class="msgret">touchedConceptIds</text>
+
+  <rect x="1205" y="770" width="10" height="90" fill="#d5f2ee" stroke="#0d9c8c" stroke-width="1"/>
+  <line x1="475" y1="780" x2="1203" y2="780" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="480" y="773" class="msg">8. awardForAttempt(tx, ctx, {attemptId, score, ...}) — GamificationService</text>
+  <line x1="1210" y1="810" x2="700" y2="810" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="720" y="803" class="msg">insert XpTransaction + LearnerBadge rows</text>
+  <text x="720" y="825" class="note">(unique attemptId — structural, reached only by the winning claim)</text>
+
+  <rect x="1395" y="845" width="10" height="90" fill="#d5f2ee" stroke="#0d9c8c" stroke-width="1"/>
+  <line x1="475" y1="855" x2="1393" y2="855" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="480" y="848" class="msg">9. evaluateQuestProgressForAttempt(tx, ctx, {activityId, touchedConceptIds}) — QuestsService</text>
+  <line x1="1400" y1="885" x2="700" y2="885" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="720" y="878" class="msg">insert QuestCompletion rows if gates satisfied (skipDuplicates)</text>
+
+  <!-- COMMIT divider -->
+  <line x1="60" y1="965" x2="1500" y2="965" stroke="#3f30c4" stroke-width="1.2" stroke-dasharray="2 4"/>
+  <rect x="700" y="953" width="120" height="20" fill="#ffffff"/>
+  <text x="760" y="968" class="divider">COMMIT</text>
+
+  <!-- SecurityLogger self-call -->
+  <path d="M480,1000 h60 v20 h-60" fill="none" stroke="#1e1c38" stroke-width="1.4" marker-end="url(#a1)"/>
+  <text x="480" y="995" class="msg">10. SecurityLogger.log("attempt_submitted") — only if won</text>
+
+  <!-- loadAttemptDetail -->
+  <line x1="475" y1="1045" x2="693" y2="1045" stroke="#1e1c38" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="480" y="1038" class="msg">11. loadAttemptDetail — fresh read, outside the transaction</text>
+  <line x1="700" y1="1075" x2="480" y2="1075" stroke="#5c5878" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="500" y="1069" class="msgret">full graded attempt</text>
+
+  <line x1="470" y1="1105" x2="278" y2="1105" stroke="#5c5878" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="290" y="1099" class="msgret">attempt detail (score, correctAnswer now visible)</text>
+  <line x1="270" y1="1135" x2="98" y2="1135" stroke="#5c5878" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#a2)"/>
+  <text x="110" y="1129" class="msgret">200 OK</text>
+
+  <!-- Guarantee box -->
+  <rect x="45" y="1175" width="1470" height="0" fill="none"/>
+  <rect x="45" y="1172" width="1470" height="38" rx="6" fill="#eff6ff" stroke="#1e40af" stroke-width="1.6"/>
+  <text x="62" y="1196" class="guarantee">Correctness guarantee: duplicate submit must not double-grade or double-reward. The claim is inside the transaction, not before it — see the "why" note below.</text>
+</svg>

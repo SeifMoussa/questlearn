@@ -1,0 +1,141 @@
+<svg viewBox="0 0 1060 1340" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    .subtitle { fill: #5c5878; font-size: 12px; text-anchor: middle; }
+    .step { fill: #1e1c38; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .stepsub { fill: #5c5878; font-size: 10.5px; text-anchor: middle; }
+    .diamondtext { fill: #1e1c38; font-size: 12px; text-anchor: middle; }
+    .looplabel { fill: #b91c1c; font-size: 10.5px; text-anchor: middle; font-style: italic; }
+    .oklabel { fill: #16a34a; font-size: 10.5px; text-anchor: middle; }
+    .num { fill: #ffffff; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .note { fill: #5c5878; font-size: 11.5px; }
+    .notetitle { fill: #1e40af; font-size: 12.5px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="a11" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#454263"/></marker>
+    <marker id="a11r" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#b91c1c"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1060" height="1340" fill="#ffffff"/>
+
+  <text x="530" y="26" class="title">SDLC / Vertical-Slice Workflow</text>
+  <text x="530" y="46" class="subtitle">The process every module (0–10) actually went through — Master Spec §13's vertical-slice order + §16's branch/PR/review discipline</text>
+
+  <!-- Step 1: Plan -->
+  <rect x="220" y="70" width="440" height="58" rx="8" fill="#ffffff" stroke="#3f30c4" stroke-width="1.6"/>
+  <circle cx="245" cy="99" r="15" fill="#3f30c4"/><text x="245" y="104" class="num">1</text>
+  <text x="460" y="96" class="step">Plan</text>
+  <text x="460" y="112" class="stepsub">read the relevant spec sections + the real current code, propose a concrete approach</text>
+
+  <line x1="440" y1="128" x2="440" y2="150" stroke="#454263" stroke-width="1.5" marker-end="url(#a11)"/>
+  <polygon points="440,150 545,192 440,234 335,192" fill="#f5f5fb" stroke="#3f30c4" stroke-width="1.4"/>
+  <text x="440" y="188" class="diamondtext">User approves</text>
+  <text x="440" y="202" class="diamondtext">the plan?</text>
+
+  <!-- loop B -> A (changes requested) -->
+  <path d="M335,192 C120,192 120,99 220,99" fill="none" stroke="#b91c1c" stroke-width="1.5" marker-end="url(#a11r)"/>
+  <text x="175" y="150" class="looplabel">changes</text>
+  <text x="175" y="163" class="looplabel">requested</text>
+
+  <line x1="440" y1="234" x2="440" y2="256" stroke="#16a34a" stroke-width="1.5" marker-end="url(#a11)"/>
+  <text x="470" y="248" class="oklabel">approved</text>
+
+  <!-- Step 2: DB changes -->
+  <rect x="220" y="258" width="440" height="52" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.6"/>
+  <circle cx="245" cy="284" r="15" fill="#1e40af"/><text x="245" y="289" class="num">2</text>
+  <text x="460" y="280" class="step">Database changes</text>
+  <text x="460" y="296" class="stepsub">schema.prisma + migration</text>
+
+  <line x1="440" y1="310" x2="440" y2="332" stroke="#454263" stroke-width="1.5" marker-end="url(#a11)"/>
+
+  <!-- Step 3: Backend domain logic (D, loop target) -->
+  <rect x="220" y="334" width="440" height="58" rx="8" fill="#ffffff" stroke="#0d9c8c" stroke-width="1.6" id="stepD"/>
+  <circle cx="245" cy="363" r="15" fill="#0d9c8c"/><text x="245" y="368" class="num">3</text>
+  <text x="460" y="358" class="step">Backend domain logic</text>
+  <text x="460" y="374" class="stepsub">pure functions where possible, unit-testable in isolation</text>
+
+  <line x1="440" y1="392" x2="440" y2="414" stroke="#454263" stroke-width="1.5" marker-end="url(#a11)"/>
+
+  <!-- Step 4: API endpoints -->
+  <rect x="220" y="416" width="440" height="58" rx="8" fill="#ffffff" stroke="#0d9c8c" stroke-width="1.6"/>
+  <circle cx="245" cy="445" r="15" fill="#0d9c8c"/><text x="245" y="450" class="num">4</text>
+  <text x="460" y="440" class="step">API endpoints</text>
+  <text x="460" y="456" class="stepsub">controller + service, tenant-scoped, authorization enforced</text>
+
+  <line x1="440" y1="474" x2="440" y2="496" stroke="#454263" stroke-width="1.5" marker-end="url(#a11)"/>
+
+  <!-- Step 5: Frontend + seed -->
+  <rect x="220" y="498" width="440" height="52" rx="8" fill="#ffffff" stroke="#d97f06" stroke-width="1.6"/>
+  <circle cx="245" cy="524" r="15" fill="#d97f06"/><text x="245" y="529" class="num">5</text>
+  <text x="460" y="520" class="step">Minimal Next.js interface</text>
+  <text x="460" y="536" class="stepsub">+ seed / fixture data</text>
+
+  <line x1="440" y1="550" x2="440" y2="572" stroke="#454263" stroke-width="1.5" marker-end="url(#a11)"/>
+
+  <!-- Step 6: Automated tests -->
+  <rect x="220" y="574" width="440" height="58" rx="8" fill="#ffffff" stroke="#4f3fe0" stroke-width="1.6"/>
+  <circle cx="245" cy="603" r="15" fill="#4f3fe0"/><text x="245" y="608" class="num">6</text>
+  <text x="460" y="598" class="step">Automated tests</text>
+  <text x="460" y="614" class="stepsub">Jest unit + integration (real Postgres), Playwright browser flow</text>
+
+  <line x1="440" y1="632" x2="440" y2="654" stroke="#454263" stroke-width="1.5" marker-end="url(#a11)"/>
+
+  <!-- Step 7: Independent re-verification -->
+  <rect x="220" y="656" width="440" height="72" rx="8" fill="#ffffff" stroke="#4f3fe0" stroke-width="1.6"/>
+  <circle cx="245" cy="692" r="15" fill="#4f3fe0"/><text x="245" y="697" class="num">7</text>
+  <text x="460" y="682" class="step">Independent re-verification</text>
+  <text x="460" y="698" class="stepsub">fresh Docker volume, migrate from zero, reseed,</text>
+  <text x="460" y="712" class="stepsub">full suite re-run, real browser walkthrough of the flow</text>
+
+  <line x1="440" y1="728" x2="440" y2="750" stroke="#454263" stroke-width="1.5" marker-end="url(#a11)"/>
+  <polygon points="440,750 545,796 440,842 335,796" fill="#f5f5fb" stroke="#3f30c4" stroke-width="1.4"/>
+  <text x="440" y="792" class="diamondtext">Re-verification</text>
+  <text x="440" y="806" class="diamondtext">clean?</text>
+
+  <!-- loop I -> D (no) -->
+  <path d="M545,796 C900,796 900,363 660,363" fill="none" stroke="#b91c1c" stroke-width="1.5" marker-end="url(#a11r)"/>
+  <text x="880" y="580" class="looplabel">no</text>
+
+  <line x1="440" y1="842" x2="440" y2="864" stroke="#16a34a" stroke-width="1.5" marker-end="url(#a11)"/>
+  <text x="470" y="856" class="oklabel">yes</text>
+
+  <!-- Step 8: Branch -> PR -> README -->
+  <rect x="220" y="866" width="440" height="58" rx="8" fill="#ffffff" stroke="#3f30c4" stroke-width="1.6"/>
+  <circle cx="245" cy="895" r="15" fill="#3f30c4"/><text x="245" y="900" class="num">8</text>
+  <text x="460" y="890" class="step">Branch → PR</text>
+  <text x="460" y="906" class="stepsub">README checkpoint updated</text>
+
+  <line x1="440" y1="924" x2="440" y2="946" stroke="#454263" stroke-width="1.5" marker-end="url(#a11)"/>
+  <polygon points="440,946 545,990 440,1034 335,990" fill="#f5f5fb" stroke="#3f30c4" stroke-width="1.4"/>
+  <text x="440" y="986" class="diamondtext">User</text>
+  <text x="440" y="1000" class="diamondtext">review</text>
+
+  <!-- loop K -> D (changes requested) -->
+  <path d="M335,990 C60,990 60,363 220,363" fill="none" stroke="#b91c1c" stroke-width="1.5" marker-end="url(#a11r)"/>
+  <text x="90" y="680" class="looplabel">changes</text>
+  <text x="90" y="693" class="looplabel">requested</text>
+
+  <line x1="440" y1="1034" x2="440" y2="1056" stroke="#16a34a" stroke-width="1.5" marker-end="url(#a11)"/>
+  <text x="470" y="1048" class="oklabel">approved</text>
+
+  <!-- Step 9: Merge to main -->
+  <rect x="220" y="1058" width="440" height="52" rx="8" fill="#1e1c38"/>
+  <circle cx="245" cy="1084" r="15" fill="#16a34a"/><text x="245" y="1089" class="num">9</text>
+  <text x="460" y="1090" class="step" fill="#ffffff">Merge to main</text>
+
+  <!-- loop L -> A (next module) -->
+  <path d="M660,1084 C1010,1084 1010,99 660,99" fill="none" stroke="#454263" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#a11)"/>
+  <text x="1000" y="600" class="stepsub" transform="rotate(90,1000,600)">next module starts the cycle again</text>
+
+  <!-- Note box -->
+  <rect x="60" y="1130" width="940" height="120" rx="8" fill="#f1effe" stroke="#4f3fe0" stroke-width="1.4"/>
+  <text x="78" y="1153" class="notetitle">What "independent re-verification" means, every time</text>
+  <text x="78" y="1174" class="note">docker compose down -v &amp;&amp; up (a genuinely fresh Postgres/Redis volume, not reused state), migrations applied from</text>
+  <text x="78" y="1191" class="note">zero, the seed script re-run, the full Jest suite re-run against that fresh database, and a real browser-driven</text>
+  <text x="78" y="1208" class="note">walkthrough against a production build (next build &amp;&amp; next start, never next dev — React StrictMode's dev-only</text>
+  <text x="78" y="1225" class="note">double-invoke behavior can mask real bugs a production build won't have).</text>
+
+  <!-- Source footer -->
+  <rect x="60" y="1266" width="940" height="58" rx="8" fill="#ffffff" stroke="#454263" stroke-width="1.4"/>
+  <text x="78" y="1288" class="note">Source: Master Spec §13 (vertical-slice development, 9-step list) and §16 (git policy: branch → PR → CI → review →</text>
+  <text x="78" y="1305" class="note">merge, even solo). Matches the actual commit/PR sequence for every one of Modules 0–10 in this repository's history.</text>
+</svg>

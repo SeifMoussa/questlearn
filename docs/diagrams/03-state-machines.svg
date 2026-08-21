@@ -1,0 +1,135 @@
+<svg viewBox="0 0 1500 1000" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 24px; font-weight: 700; text-anchor: middle; }
+    .panelh { fill: #1e1c38; font-size: 16px; font-weight: 700; }
+    .state { fill: #1e1c38; font-size: 14px; font-weight: 700; text-anchor: middle; }
+    .arrowlabel { fill: #454263; font-size: 11.5px; text-anchor: middle; }
+    .note { fill: #5c5878; font-size: 11.5px; }
+    .notetitle { fill: #1e40af; font-size: 12px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="a1" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#454263"/></marker>
+    <marker id="ared" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#b91c1c"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1500" height="1000" fill="#ffffff"/>
+  <text x="750" y="34" class="title">3. State Machine Diagrams</text>
+
+  <!-- Panel A: Activity Lifecycle -->
+  <rect x="30" y="55" width="1440" height="190" rx="10" fill="#eff6ff" stroke="#1e40af" stroke-width="2"/>
+  <text x="50" y="80" class="panelh">A. Activity Lifecycle</text>
+
+  <circle cx="90" cy="150" r="10" fill="#1e1c38"/>
+  <line x1="100" y1="150" x2="180" y2="150" stroke="#454263" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="140" y="140" class="arrowlabel">create()</text>
+
+  <rect x="185" y="120" width="140" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="2"/>
+  <text x="255" y="155" class="state">draft</text>
+
+  <line x1="325" y1="150" x2="470" y2="150" stroke="#454263" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="397" y="135" class="arrowlabel">publish()</text>
+  <text x="397" y="149" class="arrowlabel">atomic claim (status='draft')</text>
+  <text x="397" y="163" class="arrowlabel">pins every ActivityQuestion</text>
+
+  <rect x="475" y="120" width="160" height="60" rx="8" fill="#fff6e8" stroke="#d97f06" stroke-width="2"/>
+  <text x="555" y="155" class="state">published</text>
+
+  <line x1="635" y1="150" x2="700" y2="150" stroke="#454263" stroke-width="1.6" marker-end="url(#a1)"/>
+  <circle cx="715" cy="150" r="10" fill="none" stroke="#1e1c38" stroke-width="2"/>
+  <circle cx="715" cy="150" r="4" fill="#1e1c38"/>
+
+  <rect x="800" y="100" width="640" height="120" rx="8" fill="#ffffff" stroke="#cfcce3" stroke-width="1.4"/>
+  <text x="815" y="122" class="notetitle">Only 2 states in ActivityStatus — draft, published.</text>
+  <text x="815" y="142" class="note">"Preview" is a UI-only view mode on a draft activity (draft content resolves</text>
+  <text x="815" y="158" class="note">live off each question's currentVersionId) — never a persisted state, unlike</text>
+  <text x="815" y="174" class="note">the original planning sketch's 3-state Draft→Preview→Published chain.</text>
+  <text x="815" y="196" class="note">Archiving (visibility only) is allowed from either state — a separate flag,</text>
+  <text x="815" y="212" class="note">not a transition in this chain. One-way, never reversible.</text>
+
+  <!-- Panel B: Attempt Lifecycle -->
+  <rect x="30" y="265" width="1440" height="190" rx="10" fill="#eafbf8" stroke="#0d9c8c" stroke-width="2"/>
+  <text x="50" y="290" class="panelh">B. Attempt Lifecycle</text>
+
+  <rect x="90" y="330" width="150" height="60" rx="8" fill="#ffffff" stroke="#cfcce3" stroke-width="1.6" stroke-dasharray="5 3"/>
+  <text x="165" y="358" class="state" font-size="12.5">(no Attempt row)</text>
+  <text x="165" y="374" class="note" text-anchor="middle">not_started</text>
+
+  <line x1="240" y1="360" x2="380" y2="360" stroke="#454263" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="310" y="345" class="arrowlabel">start()</text>
+  <text x="310" y="359" class="arrowlabel">idempotent — repeat</text>
+  <text x="310" y="373" class="arrowlabel">calls return same row</text>
+
+  <rect x="385" y="330" width="150" height="60" rx="8" fill="#ffffff" stroke="#0d9c8c" stroke-width="2"/>
+  <text x="460" y="365" class="state">in_progress</text>
+  <path d="M420,320 q40,-25 80,0" fill="none" stroke="#0d9c8c" stroke-width="1.4" marker-end="url(#a1)"/>
+  <text x="460" y="300" class="arrowlabel">autosave (repeats)</text>
+
+  <line x1="535" y1="360" x2="675" y2="360" stroke="#454263" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="605" y="345" class="arrowlabel">submit()</text>
+  <text x="605" y="359" class="arrowlabel">atomic claim</text>
+  <text x="605" y="373" class="arrowlabel">(status='in_progress')</text>
+
+  <rect x="680" y="330" width="150" height="60" rx="8" fill="#fff6e8" stroke="#d97f06" stroke-width="2"/>
+  <text x="755" y="365" class="state">submitted</text>
+
+  <rect x="850" y="310" width="590" height="120" rx="8" fill="#ffffff" stroke="#cfcce3" stroke-width="1.4"/>
+  <text x="865" y="332" class="notetitle">2 states in AttemptStatus — in_progress, submitted.</text>
+  <text x="865" y="352" class="note">Locked on submit: autosave rejects with 400 once submitted. Answer key</text>
+  <text x="865" y="368" class="note">(correctAnswer/isCorrect/pointsAwarded) stripped from every response until</text>
+  <text x="865" y="384" class="note">submitted, then included. A repeat submit is a normal idempotent success</text>
+  <text x="865" y="400" class="note">— see 02-submission-pipeline.svg — never a re-grade, never an error.</text>
+  <text x="865" y="420" class="note">One-way, never reversible.</text>
+
+  <!-- Panel C: Mastery Progression -->
+  <rect x="30" y="475" width="1440" height="500" rx="10" fill="#f1effe" stroke="#4f3fe0" stroke-width="2"/>
+  <text x="50" y="500" class="panelh">C. Mastery Progression — live-computed, no stored state column</text>
+
+  <rect x="80" y="560" width="150" height="60" rx="8" fill="#ffffff" stroke="#cfcce3" stroke-width="1.6" stroke-dasharray="5 3"/>
+  <text x="155" y="588" class="state" font-size="12.5">not_started</text>
+  <text x="155" y="604" class="note" text-anchor="middle">zero evidence rows</text>
+
+  <line x1="230" y1="590" x2="320" y2="590" stroke="#454263" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="275" y="578" class="arrowlabel">first evidence</text>
+
+  <rect x="325" y="560" width="150" height="60" rx="8" fill="#fff6e8" stroke="#d97f06" stroke-width="2"/>
+  <text x="400" y="595" class="state">beginning</text>
+
+  <line x1="475" y1="590" x2="575" y2="590" stroke="#454263" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="525" y="578" class="arrowlabel">score ≥ 0.40</text>
+
+  <rect x="580" y="560" width="150" height="60" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="2"/>
+  <text x="655" y="595" class="state">developing</text>
+
+  <line x1="730" y1="590" x2="830" y2="590" stroke="#454263" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="780" y="578" class="arrowlabel">score ≥ 0.70</text>
+
+  <rect x="835" y="560" width="150" height="60" rx="8" fill="#eafbf8" stroke="#0d9c8c" stroke-width="2"/>
+  <text x="910" y="595" class="state">proficient</text>
+
+  <line x1="985" y1="590" x2="1085" y2="590" stroke="#454263" stroke-width="1.6" marker-end="url(#a1)"/>
+  <text x="1035" y="578" class="arrowlabel">score ≥ 0.90</text>
+
+  <rect x="1090" y="560" width="150" height="60" rx="8" fill="#f1effe" stroke="#4f3fe0" stroke-width="2"/>
+  <text x="1165" y="595" class="state">mastered</text>
+
+  <!-- Decay arrows below -->
+  <path d="M1165,660 v20 h-235 v-20" fill="none" stroke="#b91c1c" stroke-width="1.4" marker-end="url(#ared)"/>
+  <text x="1047" y="700" class="arrowlabel" fill="#b91c1c">decays below 0.90</text>
+
+  <path d="M910,660 v40 h-235 v-40" fill="none" stroke="#b91c1c" stroke-width="1.4" marker-end="url(#ared)"/>
+  <text x="792" y="720" class="arrowlabel" fill="#b91c1c">decays below 0.70</text>
+
+  <path d="M655,660 v60 h-235 v-60" fill="none" stroke="#b91c1c" stroke-width="1.4" marker-end="url(#ared)"/>
+  <text x="537" y="740" class="arrowlabel" fill="#b91c1c">decays below 0.40</text>
+
+  <rect x="80" y="770" width="1350" height="90" rx="8" fill="#fff6e8" stroke="#d97f06" stroke-width="1.6"/>
+  <text x="98" y="792" class="notetitle" fill="#d97f06">Recency-weighted, recomputed on every read — not a background job</text>
+  <text x="98" y="812" class="note">recency_weight = 0.5 ^ (days_since_recorded / 14). A concept practiced only long ago scores lower</text>
+  <text x="98" y="828" class="note">today than it did the day the evidence was recorded, without ever re-writing a row. Evaluated</text>
+  <text x="98" y="844" class="note">against the real current timestamp every time mastery is read — the decay arrows above describe how</text>
+
+  <rect x="80" y="875" width="1350" height="90" rx="8" fill="#ffffff" stroke="#cfcce3" stroke-width="1.4"/>
+  <text x="98" y="897" class="notetitle">Not a stored state — no mastery_state column anywhere in schema.prisma</text>
+  <text x="98" y="917" class="note">Only reachable state with zero evidence: not_started, never derived from a score of 0. MasteryService aggregates</text>
+  <text x="98" y="933" class="note">MasteryEvidence rows live on every read; nothing caches or persists a computed state or score.</text>
+  <text x="98" y="953" class="note">Cutoffs, half-life, and hint penalty: mastery-formula.ts (STATE_CUTOFFS, RECENCY_HALF_LIFE_DAYS = 14, HINT_PENALTY_MULTIPLIER = 0.85).</text>
+</svg>

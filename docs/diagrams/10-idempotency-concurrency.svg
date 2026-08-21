@@ -1,0 +1,126 @@
+<svg viewBox="0 0 1500 775" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 22px; font-weight: 700; text-anchor: middle; }
+    .subtitle { fill: #5c5878; font-size: 12px; text-anchor: middle; }
+    .boxtext { fill: #1e1c38; font-size: 11.5px; text-anchor: middle; }
+    .boxtextw { fill: #ffffff; font-size: 11.5px; text-anchor: middle; }
+    .colhdr { fill: #ffffff; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .diamondtext { fill: #1e1c38; font-size: 11.5px; text-anchor: middle; }
+    .usedby { fill: #1e1c38; font-size: 10.8px; text-anchor: middle; }
+    .note { fill: #5c5878; font-size: 11.5px; }
+    .notetitle { fill: #1e40af; font-size: 13px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="a10" markerWidth="9" markerHeight="9" refX="7" refY="2.5" orient="auto"><path d="M0,0 L0,5 L7,2.5 z" fill="#454263"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1500" height="775" fill="#ffffff"/>
+
+  <text x="750" y="26" class="title">Idempotency &amp; Concurrency</text>
+  <text x="750" y="45" class="subtitle">Three genuinely different mechanisms, not one pattern reused five times</text>
+
+  <!-- Start box -->
+  <rect x="530" y="58" width="440" height="42" rx="8" fill="#1e1c38"/>
+  <text x="750" y="75" class="boxtextw">A write that must never happen twice, even under</text>
+  <text x="750" y="91" class="boxtextw">real concurrent (Promise.all) requests</text>
+
+  <line x1="750" y1="100" x2="750" y2="122" stroke="#454263" stroke-width="1.5" marker-end="url(#a10)"/>
+
+  <!-- Decision diamond -->
+  <polygon points="750,122 900,172 750,222 600,172" fill="#f5f5fb" stroke="#3f30c4" stroke-width="1.6"/>
+  <text x="750" y="168" class="diamondtext">What kind of</text>
+  <text x="750" y="182" class="diamondtext">write is this?</text>
+
+  <!-- Branch arrows to 3 columns -->
+  <path d="M660,190 C500,230 320,230 250,258" fill="none" stroke="#454263" stroke-width="1.5" marker-end="url(#a10)"/>
+  <text x="430" y="222" class="subtitle">status TRANSITION (one row, one time)</text>
+
+  <line x1="750" y1="222" x2="750" y2="258" stroke="#454263" stroke-width="1.5" marker-end="url(#a10)"/>
+  <text x="750" y="238" class="subtitle" font-size="10.5">INSERT gated by unique constraint,</text>
+  <text x="750" y="250" class="subtitle" font-size="10.5">reached only inside one already-won tx</text>
+
+  <path d="M840,190 C1000,230 1180,230 1250,258" fill="none" stroke="#454263" stroke-width="1.5" marker-end="url(#a10)"/>
+  <text x="1150" y="222" class="subtitle" font-size="10.5">INSERT two DIFFERENT tx can independently reach</text>
+
+  <!-- Column 1: Claim (blue), center x=250 -->
+  <rect x="35" y="258" width="430" height="20" rx="4" fill="#1e40af"/>
+  <text x="250" y="272" class="colhdr">Atomic claim</text>
+
+  <rect x="35" y="285" width="430" height="55" rx="6" fill="#eaf0fc" stroke="#1e40af" stroke-width="1.4"/>
+  <text x="250" y="302" class="boxtext">updateMany WHERE status = &lt;prior state&gt;</text>
+  <text x="250" y="317" class="boxtext">INSIDE the same transaction as the work that follows</text>
+  <text x="250" y="332" class="boxtext" font-style="italic">used by: Attempt.submit(), Activity.publish()</text>
+
+  <line x1="250" y1="340" x2="250" y2="358" stroke="#454263" stroke-width="1.5" marker-end="url(#a10)"/>
+  <polygon points="250,358 320,393 250,428 180,393" fill="#f5f5fb" stroke="#3f30c4" stroke-width="1.4"/>
+  <text x="250" y="397" class="diamondtext">count === 1?</text>
+
+  <line x1="200" y1="410" x2="90" y2="450" stroke="#16a34a" stroke-width="1.5" marker-end="url(#a10)"/>
+  <text x="120" y="440" class="subtitle" fill="#16a34a" font-size="10">yes, won</text>
+  <rect x="20" y="452" width="215" height="60" rx="6" fill="#ebfbef" stroke="#16a34a" stroke-width="1.4"/>
+  <text x="127" y="469" class="boxtext">Do the work</text>
+  <text x="127" y="483" class="boxtext">(grade / pin versions),</text>
+  <text x="127" y="497" class="boxtext">still inside the transaction</text>
+
+  <line x1="300" y1="410" x2="410" y2="450" stroke="#5c5878" stroke-width="1.5" marker-end="url(#a10)"/>
+  <text x="380" y="440" class="subtitle" font-size="10">no, count===0</text>
+  <rect x="265" y="452" width="200" height="60" rx="6" fill="#f4f4f7" stroke="#8a8598" stroke-width="1.4" stroke-dasharray="5 4"/>
+  <text x="365" y="469" class="boxtext">No-op — return the</text>
+  <text x="365" y="483" class="boxtext">already-committed result.</text>
+  <text x="365" y="497" class="boxtext" font-weight="700">Not an error.</text>
+
+  <line x1="127" y1="512" x2="127" y2="530" stroke="#454263" stroke-width="1.5" marker-end="url(#a10)"/>
+  <rect x="20" y="532" width="215" height="60" rx="6" fill="#1e40af"/>
+  <text x="127" y="549" class="boxtextw">COMMIT — Postgres row lock</text>
+  <text x="127" y="563" class="boxtextw">forces a losing racer to block</text>
+  <text x="127" y="577" class="boxtextw">until the winner's write is visible</text>
+
+  <!-- Column 2: Structural (teal), center x=750 -->
+  <rect x="535" y="258" width="430" height="20" rx="4" fill="#0d9c8c"/>
+  <text x="750" y="272" class="colhdr">Structural (constraint alone)</text>
+
+  <rect x="535" y="285" width="430" height="70" rx="6" fill="#e6f7f5" stroke="#0d9c8c" stroke-width="1.4"/>
+  <text x="750" y="302" class="boxtext">Rely on the constraint alone — no pre-check needed,</text>
+  <text x="750" y="317" class="boxtext">because the ONLY code path that reaches this insert</text>
+  <text x="750" y="332" class="boxtext">is the winning submit() claim</text>
+  <text x="750" y="347" class="boxtext" font-style="italic">used by: XpTransaction (unique attemptId)</text>
+
+  <line x1="750" y1="355" x2="750" y2="373" stroke="#454263" stroke-width="1.5" marker-end="url(#a10)"/>
+  <rect x="535" y="375" width="430" height="70" rx="6" fill="#0d9c8c"/>
+  <text x="750" y="393" class="boxtextw">Insert succeeds exactly once,</text>
+  <text x="750" y="407" class="boxtextw">structurally — a violation here would mean</text>
+  <text x="750" y="421" class="boxtextw">the claim pattern itself broke (fail-loud)</text>
+  <text x="750" y="436" class="boxtextw" font-style="italic">also: MasteryEvidence (unique attemptResponseId+conceptId)</text>
+
+  <!-- Column 3: Defense-in-depth (orange), center x=1250 -->
+  <rect x="1035" y="258" width="430" height="20" rx="4" fill="#d97f06"/>
+  <text x="1250" y="272" class="colhdr">Defense in depth</text>
+
+  <rect x="1035" y="285" width="430" height="70" rx="6" fill="#fdf3e4" stroke="#d97f06" stroke-width="1.4"/>
+  <text x="1250" y="302" class="boxtext">createMany({ skipDuplicates: true })</text>
+  <text x="1250" y="317" class="boxtext">+ a @@unique constraint — expected to</text>
+  <text x="1250" y="332" class="boxtext">sometimes trigger, not fail-loud</text>
+  <text x="1250" y="347" class="boxtext" font-style="italic">used by: LearnerBadge (unique learnerId+badgeType)</text>
+
+  <line x1="1250" y1="355" x2="1250" y2="373" stroke="#454263" stroke-width="1.5" marker-end="url(#a10)"/>
+  <rect x="1035" y="375" width="430" height="70" rx="6" fill="#d97f06"/>
+  <text x="1250" y="393" class="boxtextw">Second racing insert is silently</text>
+  <text x="1250" y="407" class="boxtextw">dropped by Postgres,</text>
+  <text x="1250" y="421" class="boxtextw">not treated as an error</text>
+  <text x="1250" y="436" class="boxtextw" font-style="italic">also: QuestCompletion (unique questId+learnerId)</text>
+
+  <!-- Why QuestCompletion note -->
+  <rect x="535" y="470" width="930" height="150" rx="8" fill="#f1effe" stroke="#4f3fe0" stroke-width="1.4"/>
+  <text x="553" y="493" class="notetitle">Why QuestCompletion needs defense-in-depth but XpTransaction doesn't</text>
+  <text x="553" y="515" class="note">An XpTransaction is scoped to one attempt — only the single winning claim inside that one</text>
+  <text x="553" y="532" class="note">attempt's submit() transaction can ever reach the insert, so a unique-constraint violation there</text>
+  <text x="553" y="549" class="note">would mean the claim pattern itself is broken (genuinely unreachable in correct code).</text>
+  <text x="553" y="571" class="note">A QuestCompletion's last step can become satisfied by two DIFFERENT concurrent attempts — one</text>
+  <text x="553" y="588" class="note">completing the activity gate, a racing one independently pushing a mastery gate over threshold —</text>
+  <text x="553" y="605" class="note">so there's no single shared claim to race on, and skipDuplicates is the correct mechanism.</text>
+
+  <!-- Source footer -->
+  <rect x="35" y="640" width="1430" height="70" rx="8" fill="#ffffff" stroke="#454263" stroke-width="1.4"/>
+  <text x="53" y="663" class="note" font-weight="700">Source:</text>
+  <text x="53" y="681" class="note">Doc comments on XpTransaction, MasteryEvidence, LearnerBadge, and QuestCompletion in apps/api/prisma/schema.prisma.</text>
+  <text x="53" y="698" class="note">Proven under real Promise.all concurrency in the activities/attempts/gamification/mastery/quests-concurrency integration specs.</text>
+</svg>

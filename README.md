@@ -42,6 +42,35 @@ packages/design-system         design tokens + component library
 See [`docs/adr/0001-initial-architecture.md`](./docs/adr/0001-initial-architecture.md)
 for why this stack was chosen.
 
+### Diagrams
+
+Fifteen categories, generated directly from the real, final codebase
+(schema, source, tests, CI config) rather than from the original
+planning-stage sketch — several diagrams document real corrections
+against that sketch (no background job queue was ever built, Redis is
+provisioned but not yet load-bearing, there's no global tenancy
+guard). Mermaid renders natively in GitHub's markdown viewer; the two
+use-case diagrams are hand-crafted SVG since Mermaid has no native
+use-case notation.
+
+| # | Diagram | Shows |
+|---|---|---|
+| 1 | [System Architecture](./docs/diagrams/01-system-architecture.md) | Client → API → 11 feature modules → Postgres/Redis, as actually built |
+| 2 | [Submission Pipeline](./docs/diagrams/02-submission-pipeline.md) | `AttemptsService.submit()`'s exact transaction, step by step |
+| 3 | [State Machines](./docs/diagrams/03-state-machines.md) | Activity, Attempt (one-way, atomically claimed), and live-computed Mastery |
+| 4 | [ERD](./docs/diagrams/04-erd.md) | All 22 Prisma models, `tenant_id` on every applicable table |
+| 5 | [Component Diagram](./docs/diagrams/05-component-diagram.md) | Real NestJS module dependency edges, confirmed by grep |
+| 6 | [Security & Auth Sequence](./docs/diagrams/06-security-auth-sequence.md) | Register, login, refresh rotation, CSRF double-submit |
+| 7 | [Use Case Diagrams](./docs/diagrams/07-use-case-diagrams.md) | Teacher and Learner journeys (hand-crafted SVG, proper UML) |
+| 8 | [CI/CD Pipeline](./docs/diagrams/08-cicd-pipeline.md) | The real `ci.yml` stage order |
+| 9 | [Phase 1 vs. Phase 2](./docs/diagrams/09-phase1-vs-phase2.md) | Modules 0–10 (built) vs. Module 11 Live Sessions (deferred) |
+| 10 | [Idempotency & Concurrency](./docs/diagrams/10-idempotency-concurrency.md) | The three real claim/dedup mechanisms, not one flattened pattern |
+| 11 | [SDLC / Vertical Slice Workflow](./docs/diagrams/11-sdlc-workflow.md) | The actual plan → build → re-verify → PR → merge cycle every module followed |
+| 12 | [Local Infra & Environment](./docs/diagrams/12-local-infra-environment.md) | `docker-compose.yml` + the two Module 10 production Dockerfiles |
+| 13 | [Data Flow / Threat Model](./docs/diagrams/13-data-flow-threat-model.md) | Every real boundary from `SECURITY_NOTES.md` |
+| 14 | [C4 Model](./docs/diagrams/14-c4-model.md) | Context and Container views |
+| 15 | [DDD Context Map](./docs/diagrams/15-ddd-context-map.md) | The bounded contexts as they actually emerged |
+
 ## Setup (clean machine)
 
 1. **Install Node 24.** Version pinned in `.nvmrc` / `.node-version`

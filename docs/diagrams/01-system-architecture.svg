@@ -1,0 +1,222 @@
+<svg viewBox="0 0 1500 820" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { fill: #1e1c38; font-size: 24px; font-weight: 700; text-anchor: middle; }
+    .boxlabel { fill: #1e1c38; font-size: 15px; font-weight: 700; }
+    .boxsub { fill: #5c5878; font-size: 11.5px; }
+    .modlabel { fill: #1e1c38; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .actorlabel { fill: #1e1c38; font-size: 14px; font-weight: 600; text-anchor: middle; }
+    .arrowlabel { fill: #454263; font-size: 11.5px; }
+    .legend { fill: #1e1c38; font-size: 12px; }
+    .legendtitle { fill: #1e1c38; font-size: 13px; font-weight: 700; }
+    .note { fill: #1e1c38; font-size: 12.5px; }
+    .notetitle { fill: #16a34a; font-size: 13px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="arrow1" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#454263"/>
+    </marker>
+    <marker id="arrowdash" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#dc2626"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1500" height="820" fill="#ffffff"/>
+  <text x="750" y="38" class="title">1. System Architecture — QuestLearn</text>
+
+  <!-- Actors -->
+  <g stroke="#166534" stroke-width="2" fill="none">
+    <circle cx="80" cy="180" r="15" fill="#ffffff"/>
+    <line x1="80" y1="195" x2="80" y2="245"/>
+    <line x1="55" y1="213" x2="105" y2="213"/>
+    <line x1="80" y1="245" x2="58" y2="280"/>
+    <line x1="80" y1="245" x2="102" y2="280"/>
+  </g>
+  <text x="80" y="302" class="actorlabel" fill="#166534">Teacher</text>
+
+  <g stroke="#1e40af" stroke-width="2" fill="none">
+    <circle cx="80" cy="400" r="15" fill="#ffffff"/>
+    <line x1="80" y1="415" x2="80" y2="465"/>
+    <line x1="55" y1="433" x2="105" y2="433"/>
+    <line x1="80" y1="465" x2="58" y2="500"/>
+    <line x1="80" y1="465" x2="102" y2="500"/>
+  </g>
+  <text x="80" y="522" class="actorlabel" fill="#1e40af">Learner</text>
+
+  <!-- Client box -->
+  <rect x="200" y="270" width="230" height="130" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="2"/>
+  <text x="215" y="295" class="boxlabel">Next.js Client</text>
+  <text x="215" y="313" class="boxsub">App Router, apps/web</text>
+  <text x="215" y="335" class="boxsub">Every dynamic route: "use client"</text>
+  <text x="215" y="350" class="boxsub">+ useParams() (client component)</text>
+  <text x="215" y="372" class="boxsub">Serves both roles — one app</text>
+
+  <line x1="105" y1="240" x2="235" y2="290" stroke="#166534" stroke-width="1.5" marker-end="url(#arrow1)"/>
+  <line x1="105" y1="460" x2="235" y2="380" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+  <line x1="430" y1="335" x2="558" y2="335" stroke="#454263" stroke-width="1.5" marker-end="url(#arrow1)"/>
+  <text x="438" y="322" class="arrowlabel">HTTPS/REST, Bearer JWT</text>
+  <text x="438" y="352" class="arrowlabel">+ CSRF double-submit</text>
+
+  <!-- API boundary: x=560..1160, y=70..570 (h=500) -->
+  <rect x="560" y="70" width="600" height="500" rx="10" fill="#f5f5fb" stroke="#3f30c4" stroke-width="2.5"/>
+  <text x="860" y="98" class="title" font-size="17">QuestLearn API — NestJS Modular Monolith</text>
+  <text x="860" y="117" class="boxsub" text-anchor="middle">apps/api</text>
+
+  <!-- Guards -->
+  <rect x="600" y="132" width="520" height="52" rx="6" fill="#fff6e8" stroke="#d97f06" stroke-width="1.5"/>
+  <text x="615" y="153" class="boxlabel" font-size="13">JwtAuthGuard + CsrfGuard</text>
+  <text x="615" y="171" class="boxsub">Per-route, not a global tenancy/authz guard layer</text>
+
+  <text x="615" y="210" class="boxlabel" font-size="13">11 Feature Modules</text>
+
+  <!-- Module grid: 4 cols x 3 rows, box 125x60, row y: 222, 300, 378 -->
+
+  <!-- Row 1 -->
+  <g>
+    <rect x="600" y="222" width="125" height="60" rx="6" fill="#eff6ff" stroke="#1e40af" stroke-width="1.3"/>
+    <rect x="650" y="239" width="24" height="18" rx="2" fill="none" stroke="#1e40af" stroke-width="1.5"/>
+    <path d="M655,239 v-6 a7,7 0 0 1 14,0 v6" fill="none" stroke="#1e40af" stroke-width="1.5"/>
+    <text x="662" y="275" class="modlabel">auth</text>
+  </g>
+  <g>
+    <rect x="735" y="222" width="125" height="60" rx="6" fill="#eff6ff" stroke="#1e40af" stroke-width="1.3"/>
+    <circle cx="787" cy="242" r="6" fill="none" stroke="#1e40af" stroke-width="1.4"/>
+    <circle cx="801" cy="242" r="6" fill="none" stroke="#1e40af" stroke-width="1.4"/>
+    <path d="M778,257 q9,-10 18,0" fill="none" stroke="#1e40af" stroke-width="1.4"/>
+    <path d="M792,257 q9,-10 18,0" fill="none" stroke="#1e40af" stroke-width="1.4"/>
+    <text x="797" y="275" class="modlabel">classes</text>
+  </g>
+  <g>
+    <rect x="870" y="222" width="125" height="60" rx="6" fill="#eafbf8" stroke="#0d9c8c" stroke-width="1.3"/>
+    <rect x="920" y="235" width="18" height="22" rx="2" fill="none" stroke="#0d9c8c" stroke-width="1.4"/>
+    <line x1="924" y1="242" x2="934" y2="242" stroke="#0d9c8c" stroke-width="1.2"/>
+    <line x1="924" y1="247" x2="934" y2="247" stroke="#0d9c8c" stroke-width="1.2"/>
+    <line x1="924" y1="252" x2="930" y2="252" stroke="#0d9c8c" stroke-width="1.2"/>
+    <text x="932" y="275" class="modlabel">questions</text>
+  </g>
+  <g>
+    <rect x="1005" y="222" width="125" height="60" rx="6" fill="#eafbf8" stroke="#0d9c8c" stroke-width="1.3"/>
+    <rect x="1055" y="237" width="18" height="22" rx="2" fill="none" stroke="#0d9c8c" stroke-width="1.4"/>
+    <rect x="1060" y="234" width="8" height="5" fill="#0d9c8c"/>
+    <line x1="1059" y1="246" x2="1069" y2="246" stroke="#0d9c8c" stroke-width="1.2"/>
+    <line x1="1059" y1="251" x2="1069" y2="251" stroke="#0d9c8c" stroke-width="1.2"/>
+    <text x="1067" y="275" class="modlabel">activities</text>
+  </g>
+
+  <!-- Row 2 -->
+  <g>
+    <rect x="600" y="300" width="125" height="60" rx="6" fill="#fff6e8" stroke="#d97f06" stroke-width="1.3"/>
+    <rect x="648" y="315" width="22" height="19" rx="2" fill="none" stroke="#d97f06" stroke-width="1.4"/>
+    <line x1="648" y1="321" x2="670" y2="321" stroke="#d97f06" stroke-width="1.2"/>
+    <line x1="654" y1="312" x2="654" y2="318" stroke="#d97f06" stroke-width="1.2"/>
+    <line x1="664" y1="312" x2="664" y2="318" stroke="#d97f06" stroke-width="1.2"/>
+    <text x="662" y="353" class="modlabel">assignments</text>
+  </g>
+  <g>
+    <rect x="735" y="300" width="125" height="60" rx="6" fill="#fff6e8" stroke="#d97f06" stroke-width="1.3"/>
+    <line x1="787" y1="333" x2="807" y2="313" stroke="#d97f06" stroke-width="2"/>
+    <path d="M807,313 l5,5 l-5,5 z" fill="#d97f06"/>
+    <text x="797" y="353" class="modlabel">attempts</text>
+  </g>
+  <g>
+    <rect x="870" y="300" width="125" height="60" rx="6" fill="#f1effe" stroke="#4f3fe0" stroke-width="1.3"/>
+    <path d="M918,313 h12 l8,8 l-8,8 h-12 z" fill="none" stroke="#4f3fe0" stroke-width="1.4"/>
+    <circle cx="922" cy="321" r="1.6" fill="#4f3fe0"/>
+    <text x="932" y="353" class="modlabel">concepts</text>
+  </g>
+  <g>
+    <rect x="1005" y="300" width="125" height="60" rx="6" fill="#eafbf8" stroke="#0d9c8c" stroke-width="1.3"/>
+    <rect x="1050" y="327" width="6" height="10" fill="#0d9c8c"/>
+    <rect x="1059" y="320" width="6" height="17" fill="#0d9c8c"/>
+    <rect x="1068" y="313" width="6" height="24" fill="#0d9c8c"/>
+    <text x="1067" y="353" class="modlabel">mastery</text>
+  </g>
+
+  <!-- Row 3 -->
+  <g>
+    <rect x="600" y="378" width="125" height="60" rx="6" fill="#eafbf8" stroke="#0d9c8c" stroke-width="1.3"/>
+    <rect x="648" y="398" width="28" height="14" rx="6" fill="none" stroke="#0d9c8c" stroke-width="1.4"/>
+    <circle cx="669" cy="405" r="1.6" fill="#0d9c8c"/>
+    <circle cx="674" cy="402" r="1.6" fill="#0d9c8c"/>
+    <text x="662" y="431" class="modlabel">gamification</text>
+  </g>
+  <g>
+    <rect x="735" y="378" width="125" height="60" rx="6" fill="#eafbf8" stroke="#0d9c8c" stroke-width="1.3"/>
+    <line x1="791" y1="393" x2="791" y2="415" stroke="#0d9c8c" stroke-width="1.6"/>
+    <path d="M791,394 h14 l-4,5 l4,5 h-14 z" fill="#0d9c8c"/>
+    <text x="797" y="431" class="modlabel">quests</text>
+  </g>
+  <g>
+    <rect x="870" y="378" width="125" height="60" rx="6" fill="#f1effe" stroke="#4f3fe0" stroke-width="1.3"/>
+    <rect x="915" y="401" width="6" height="14" fill="#4f3fe0"/>
+    <rect x="924" y="393" width="6" height="22" fill="#4f3fe0"/>
+    <rect x="933" y="405" width="6" height="10" fill="#4f3fe0"/>
+    <text x="932" y="431" class="modlabel">reports</text>
+  </g>
+
+  <text x="1140" y="480" class="boxsub" text-anchor="end">(module-to-module edges shown in</text>
+  <text x="1140" y="495" class="boxsub" text-anchor="end">05-component-diagram.svg)</text>
+
+  <!-- Postgres -->
+  <g>
+    <ellipse cx="1330" cy="150" rx="90" ry="20" fill="#f1effe" stroke="#4f3fe0" stroke-width="2"/>
+    <path d="M1240,150 v70 a90,20 0 0 0 180,0 v-70" fill="#f1effe" stroke="#4f3fe0" stroke-width="2"/>
+    <ellipse cx="1330" cy="220" rx="90" ry="20" fill="none" stroke="#4f3fe0" stroke-width="2"/>
+    <text x="1330" y="275" class="boxlabel" text-anchor="middle">PostgreSQL 17</text>
+    <text x="1330" y="293" class="boxsub" text-anchor="middle">Source of truth</text>
+    <text x="1330" y="308" class="boxsub" text-anchor="middle">tenant_id on every row</text>
+  </g>
+  <line x1="1160" y1="350" x2="1280" y2="240" stroke="#454263" stroke-width="1.5" marker-end="url(#arrow1)"/>
+  <text x="1170" y="335" class="arrowlabel">Read/write, all 11 modules</text>
+  <text x="1170" y="348" class="arrowlabel">(Prisma)</text>
+
+  <!-- Redis, flagged -->
+  <g>
+    <ellipse cx="1330" cy="400" rx="90" ry="20" fill="#fdecec" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4"/>
+    <path d="M1240,400 v70 a90,20 0 0 0 180,0 v-70" fill="#fdecec" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4"/>
+    <ellipse cx="1330" cy="470" rx="90" ry="20" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="1330" y="525" class="boxlabel" text-anchor="middle" fill="#dc2626">Redis 8</text>
+    <text x="1330" y="543" class="boxsub" text-anchor="middle">Provisioned, health-checked —</text>
+    <text x="1330" y="557" class="boxsub" text-anchor="middle">not yet backing sessions or</text>
+    <text x="1330" y="571" class="boxsub" text-anchor="middle">rate limits (see note below)</text>
+  </g>
+  <line x1="1160" y1="440" x2="1250" y2="440" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrowdash)"/>
+  <text x="1165" y="428" class="arrowlabel" fill="#dc2626">/health ping only</text>
+
+  <!-- Legend -->
+  <rect x="40" y="600" width="470" height="200" rx="8" fill="#ffffff" stroke="#454263" stroke-width="1.5"/>
+  <text x="58" y="626" class="legendtitle">LEGEND</text>
+  <g stroke="#166534" stroke-width="1.6" fill="none">
+    <circle cx="65" cy="645" r="7"/>
+    <line x1="65" y1="652" x2="65" y2="665"/>
+    <line x1="57" y1="657" x2="73" y2="657"/>
+  </g>
+  <text x="82" y="661" class="legend">Actor (Teacher / Learner)</text>
+
+  <rect x="55" y="675" width="24" height="16" rx="3" fill="#eff6ff" stroke="#1e40af" stroke-width="1.4"/>
+  <text x="88" y="687" class="legend">Client / Backend container</text>
+
+  <ellipse cx="67" cy="708" rx="12" ry="5" fill="#f1effe" stroke="#4f3fe0" stroke-width="1.4"/>
+  <text x="88" y="712" class="legend">Database</text>
+
+  <line x1="55" y1="728" x2="80" y2="728" stroke="#454263" stroke-width="1.5" marker-end="url(#arrow1)"/>
+  <text x="88" y="732" class="legend">Synchronous (HTTPS / REST)</text>
+
+  <line x1="55" y1="748" x2="80" y2="748" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrowdash)"/>
+  <text x="88" y="752" class="legend">Health-check only (not load-bearing)</text>
+
+  <rect x="55" y="764" width="24" height="16" rx="3" fill="none" stroke="#dc2626" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <text x="88" y="776" class="legend">Provisioned, not yet load-bearing</text>
+
+  <!-- Notes -->
+  <rect x="530" y="600" width="630" height="200" rx="8" fill="#eafbf8" stroke="#0d9c8c" stroke-width="1.5"/>
+  <text x="548" y="626" class="notetitle">NOTES — what's actually true, verified by grep</text>
+  <text x="548" y="652" class="note">✓ Server-side authorization on every request, but no single global</text>
+  <text x="558" y="668" class="note">  guard component — enforced per-service, per-query (tenantId filter).</text>
+  <text x="548" y="692" class="note">✓ No background job queue. Mastery, gamification, and quest-progress</text>
+  <text x="558" y="708" class="note">  evaluation run synchronously, inside the same transaction as attempt</text>
+  <text x="558" y="724" class="note">  grading — see 02-submission-pipeline.svg.</text>
+  <text x="548" y="748" class="note">✓ No notifications or audit modules exist — both explicitly deferred</text>
+  <text x="558" y="764" class="note">  (FR#11/FR#12), no trigger, table, or UI hook anywhere in the code.</text>
+  <text x="548" y="788" class="note">See planning-sketches/README.md for the full plan-vs-built story.</text>
+</svg>
