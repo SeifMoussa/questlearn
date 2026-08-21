@@ -1,7 +1,7 @@
 # QuestLearn — Master Requirements & Engineering Plan
 ### (Consolidated: requirements doc + repository/checkpoint policy — this file supersedes both)
 
-**Repository:** `github.com/SeifMoussa/questlearn`
+**Repository:** `github.com/SeifHegazy53/questlearn`
 **Status:** Requirements and engineering policy locked. Ready for Module 0.
 
 ---
@@ -138,7 +138,7 @@ double effects.
 
 ```
 Repository name:            questlearn
-Repository owner:           github.com/SeifMoussa
+Repository owner:           github.com/SeifHegazy53
 Architecture:                pnpm workspace modular monorepo
 Monorepo orchestrator:       none initially (plain pnpm workspaces)
 Package manager:              pnpm 11.20.0

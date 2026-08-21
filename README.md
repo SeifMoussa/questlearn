@@ -79,7 +79,7 @@ use-case notation.
    (or `npm install -g pnpm@11.20.0`).
 3. **Clone and install dependencies:**
    ```
-   git clone https://github.com/SeifMoussa/questlearn.git
+   git clone https://github.com/SeifHegazy53/questlearn.git
    cd questlearn
    pnpm install
    ```
