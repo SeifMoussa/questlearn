@@ -14,6 +14,21 @@ project licensed under the MIT License.
 The full product and engineering plan lives in
 [`QuestLearn_Master_Spec.md`](./QuestLearn_Master_Spec.md).
 
+**Contents:** [Status](#status) · [Architecture](#architecture) ·
+[Diagrams](#diagrams) · [Setup](#setup-clean-machine) ·
+[Module 1 — Authentication](#module-1--authentication) ·
+[Module 2 — Classes](#module-2--classes) ·
+[Module 3 — Questions](#module-3--questions) ·
+[Module 4 — Activities](#module-4--activities) ·
+[Module 5 — Assignments and Attempts](#module-5--assignments-and-attempts) ·
+[Module 6 — Mastery](#module-6--mastery) ·
+[Module 7 — Gamification](#module-7--gamification) ·
+[Module 8 — Quests](#module-8--quests) ·
+[Module 9 — Reporting and Administration](#module-9--reporting-and-administration) ·
+[Module 10 — Security, Accessibility, and Production Hardening](#module-10--security-accessibility-and-production-hardening) ·
+[Testing](#testing) · [Known limitations](#known-limitations) ·
+[License](#license)
+
 ## Status
 
 Modules 0 through 10 are all in place: foundation, authentication,
@@ -209,7 +224,7 @@ cookie-based sessions.
   unauthenticated-redirect and form-validation states. This flow also
   produced the screenshots below.
 
-**Demo login:**
+#### Demo login
 
 `pnpm db:seed` creates one fictional demo teacher account for manual
 testing:
