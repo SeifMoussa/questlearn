@@ -247,20 +247,29 @@ describe("mastery evidence and query endpoints (integration)", () => {
     expect(q2Evidence[0].responseScore).toBeCloseTo(1.0);
   });
 
-  it("GET /mastery/me reflects the recorded evidence with the expected score and state", async () => {
+  it("GET /mastery/me reflects the recorded evidence with the expected score, gated state, evidenceCount and distinctAttemptCount", async () => {
     const res = await request(app.getHttpServer()).get("/mastery/me").set(learnerAuth()).expect(200);
-    type MasteryRow = { conceptId: string; score: number; state: string };
+    type MasteryRow = { conceptId: string; score: number; state: string; evidenceCount: number; distinctAttemptCount: number };
     const byId = new Map<string, MasteryRow>(res.body.map((c: MasteryRow) => [c.conceptId, c]));
 
-    // conceptA: single evidence row, score 0.85 (freshly recorded -> recency weight ~1) -> proficient.
+    // conceptA: single evidence row, score 0.85 (freshly recorded -> recency weight ~1). The
+    // score alone would justify "proficient", but the evidence/attempt gate caps a single
+    // evidence row from a single attempt at "beginning" (proficient needs >= 3 evidence rows).
     const a = byId.get(conceptAId)!;
     expect(a.score).toBeCloseTo(0.85, 1);
-    expect(a.state).toBe("proficient");
+    expect(a.state).toBe("beginning");
+    expect(a.evidenceCount).toBe(1);
+    expect(a.distinctAttemptCount).toBe(1);
 
-    // conceptB: two evidence rows (0.85 and 1.0), both fresh -> weighted average ~0.925 -> mastered.
+    // conceptB: two evidence rows (0.85 and 1.0), both fresh -> weighted average ~0.925, which
+    // alone would justify "mastered". But both rows come from ONE attempt — the exact "two
+    // questions in one sitting" defect this gate exists to fix — so it's capped at "developing"
+    // (developing only needs >= 2 evidence rows across >= 1 attempt).
     const b = byId.get(conceptBId)!;
     expect(b.score).toBeCloseTo(0.925, 1);
-    expect(b.state).toBe("mastered");
+    expect(b.state).toBe("developing");
+    expect(b.evidenceCount).toBe(2);
+    expect(b.distinctAttemptCount).toBe(1);
   });
 
   it("THE IDEMPOTENCY PROOF: concurrent duplicate submit creates evidence exactly once per concept", async () => {
@@ -290,6 +299,55 @@ describe("mastery evidence and query endpoints (integration)", () => {
       .set(learnerAuth())
       .send({ hintViewed: true })
       .expect(400);
+  });
+
+  it("a second distinct attempt on the same concept is NOT enough to reach Mastered (evidence gate requires >= 3 distinct attempts)", async () => {
+    const assignment2 = await request(app.getHttpServer())
+      .post("/assignments")
+      .set(teacherAuth())
+      .send({ classId, activityId, dueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() })
+      .expect(201);
+
+    const started2 = await request(app.getHttpServer()).post(`/assignments/${assignment2.body.id}/attempts/start`).set(learnerAuth()).expect(200);
+    const attempt2Id = started2.body.id;
+    await request(app.getHttpServer()).patch(`/attempts/${attempt2Id}/responses/${aq1}`).set(learnerAuth()).send({ responseValue: "b" }).expect(200);
+    await request(app.getHttpServer()).patch(`/attempts/${attempt2Id}/responses/${aq2}`).set(learnerAuth()).send({ responseValue: true }).expect(200);
+    await request(app.getHttpServer()).post(`/attempts/${attempt2Id}/submit`).set(learnerAuth()).expect(200);
+
+    const res = await request(app.getHttpServer()).get("/mastery/me").set(learnerAuth()).expect(200);
+    type MasteryRow = { conceptId: string; score: number; state: string; evidenceCount: number; distinctAttemptCount: number };
+    const b = (res.body as MasteryRow[]).find((c) => c.conceptId === conceptBId)!;
+
+    // Now 4 evidence rows (0.85, 1.0, 1.0, 1.0) across 2 distinct attempts -> score ~0.9625,
+    // which alone would justify Mastered, but Mastered requires >= 3 distinct attempts.
+    expect(b.evidenceCount).toBe(4);
+    expect(b.distinctAttemptCount).toBe(2);
+    expect(b.state).not.toBe("mastered");
+    expect(b.state).toBe("proficient");
+  });
+
+  it("a third distinct attempt genuinely reaches Mastered under the evidence-gated model", async () => {
+    const assignment3 = await request(app.getHttpServer())
+      .post("/assignments")
+      .set(teacherAuth())
+      .send({ classId, activityId, dueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() })
+      .expect(201);
+
+    const started3 = await request(app.getHttpServer()).post(`/assignments/${assignment3.body.id}/attempts/start`).set(learnerAuth()).expect(200);
+    const attempt3Id = started3.body.id;
+    await request(app.getHttpServer()).patch(`/attempts/${attempt3Id}/responses/${aq1}`).set(learnerAuth()).send({ responseValue: "b" }).expect(200);
+    await request(app.getHttpServer()).patch(`/attempts/${attempt3Id}/responses/${aq2}`).set(learnerAuth()).send({ responseValue: true }).expect(200);
+    await request(app.getHttpServer()).post(`/attempts/${attempt3Id}/submit`).set(learnerAuth()).expect(200);
+
+    const res = await request(app.getHttpServer()).get("/mastery/me").set(learnerAuth()).expect(200);
+    type MasteryRow = { conceptId: string; score: number; state: string; evidenceCount: number; distinctAttemptCount: number };
+    const b = (res.body as MasteryRow[]).find((c) => c.conceptId === conceptBId)!;
+
+    // 6 evidence rows across 3 distinct attempts, score ~0.975 -> both the score and the
+    // evidence/attempt gate now clear Mastered.
+    expect(b.evidenceCount).toBe(6);
+    expect(b.distinctAttemptCount).toBe(3);
+    expect(b.state).toBe("mastered");
   });
 
   it("recency-specific: live mastery score matches a hand-computed expected value against controlled recordedAt timestamps", async () => {

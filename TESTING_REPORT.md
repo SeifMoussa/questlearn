@@ -1,8 +1,9 @@
 # Testing Report
 
 What's actually been verified, and how — not a coverage aspiration.
-Current as of Module 10 (Security, Accessibility, and Production
-Hardening), the last module before the MVP is feature-complete.
+Current as of Module 10.2 (Domain Correctness: Mastery Evidence
+Gating), following Module 10 (Security, Accessibility, and Production
+Hardening).
 
 ## Test suites
 
@@ -13,13 +14,18 @@ Hardening), the last module before the MVP is feature-complete.
   option-id uniqueness, activities lifecycle + publish atomic-claim +
   concurrency proof, the full assignments/attempts lifecycle
   (including the submit idempotency and frozen-content proofs),
-  mastery evidence/recalculation (including its own idempotency proof
-  and a recency-decay test), gamification XP/badge awarding (including
-  its own idempotency proof), quest CRUD/gating/reward (including its
-  own concurrency proof), all four reporting endpoints against a
-  hand-checkable fixture (plus CSV formula-injection escaping), tenant
-  isolation across every module with resources to isolate, and rate
-  limiting (auth + join-code redemption + the app-wide default).
+  mastery evidence/recalculation (including its own idempotency proof,
+  a recency-weighting test — newer evidence carries proportionally
+  greater influence than older evidence, not "decay" — and, as of
+  Module 10.2, the evidence/distinct-attempt-count gate's boundary
+  cases), gamification XP/badge awarding (including its own
+  idempotency proof), quest CRUD/gating/reward (including its own
+  concurrency proof, reworked in Module 10.2 to stage the "mastered"
+  gate across the now-required 3 distinct attempts instead of 1), all
+  four reporting endpoints against a hand-checkable fixture (plus CSV
+  formula-injection escaping), tenant isolation across every module
+  with resources to isolate, and rate limiting (auth + join-code
+  redemption + the app-wide default).
 - **Jest — `apps/web`**: 3 tests, a render smoke test for the status
   page (loading/connected/degraded states).
 - **Playwright — `apps/web/e2e`**: 48 tests across 10 spec files,
@@ -115,6 +121,71 @@ for every prior module:
    dev-only double-invoke behavior would mask real issues).
 6. Both Docker images built and run as real containers, end-to-end
    login proof through the browser.
+
+## Module 10.2 — Mastery Evidence Gating
+
+Domain-correctness fix: mastery state is now additionally gated by a
+minimum evidence-row-count and minimum-distinct-attempt-count per
+state (score thresholds, the 14-day recency half-life, and the 15%
+hint penalty are all unchanged). All gating logic is centralized in
+`mastery-formula.ts`/`mastery.service.ts`; `quests.service.ts`,
+`quest-formula.ts`, and `gamification.service.ts` required zero
+production-code changes, since they only ever consumed the returned
+`state` string.
+
+- **`mastery-formula.spec.ts`** — 9 new unit tests: `distinctAttemptCount`
+  (unique-attempt counting, empty-evidence case) and `stateForEvidence`
+  boundary cases for every state, including the original "two questions
+  in one sitting" defect (score 0.925, 2 evidence rows, 1 attempt →
+  capped at Developing, not Mastered) and a proof the gate never
+  promotes a state above what the score alone justifies.
+- **`mastery.integration.spec.ts`** — existing assertions updated to
+  the now-correctly-gated states (single evidence row: Proficient →
+  Beginning; two evidence rows from one attempt: Mastered →
+  Developing), plus two new tests proving a second distinct attempt is
+  still insufficient (capped at Proficient) and a third distinct
+  attempt genuinely reaches Mastered — both driven through the real
+  HTTP submit path, not hand-inserted evidence.
+- **`quests.integration.spec.ts`** — the "reaching mastered completes
+  step 2" scenario extended from 1 to 3 distinct assignments/attempts
+  on the mastery-source concept, with a new intermediate test proving
+  2 of the 3 needed attempts is not enough.
+- **`quests-concurrency.integration.spec.ts`** — the race proof's
+  premise no longer holds as written (a single full-credit response
+  can no longer reach Mastered on its own), so it was restaged: two
+  sequential pre-race attempts bring the concept to 3 evidence
+  rows/2 distinct attempts (short of Mastered), then two further
+  attempts are submitted concurrently, each independently computing
+  4 evidence rows/3 distinct attempts and crossing the gate — the
+  same `QuestCompletion` unique-constraint race this test exists to
+  prove, just staged to actually reach the state gate under the new
+  rule.
+- **`seed.ts`** — extended with a second, narrower published activity
+  ("Solar System Mastery Check", 2 questions) and two additional
+  submitted assignments/attempts against it, all routed through the
+  real `MasteryService.recordEvidenceForAttempt` /
+  `GamificationService.awardForAttempt` path (no hand-inserted
+  `MasteryEvidence` rows), so the demo learner reaches one genuinely
+  Mastered concept (Solar System Basics: 6 evidence rows across 3
+  distinct attempts) under the new gate. The Number Theory concept
+  used by the existing demo quest is untouched by these additions, so
+  that quest's step-2 "unlocked but not yet met" demonstration is
+  unaffected.
+- **Frontend** — `ConceptMastery` gained `evidenceCount`/
+  `distinctAttemptCount`; both the learner `/mastery` page and the
+  teacher `/classes/:id/mastery` page now show a short note (e.g.
+  "Score 0.98 · 2 of 3 attempts needed for Mastered") whenever the raw
+  score would justify a higher state than what's reported, computed
+  client-side in `lib/api.ts`'s `masteryGateStatus`.
+- **Verification note**: this environment had no reachable Postgres
+  (Docker Desktop's engine was not running and could not be started
+  headlessly here), so the integration/E2E suites above are updated
+  and were reviewed by hand for correctness against the new gate, but
+  were not executed in this session. The pure unit suite
+  (`mastery-formula.spec.ts`, 26 tests) was run and passes. Run the
+  full suite locally with `docker compose up -d && pnpm --filter
+  @questlearn/api test && pnpm --filter @questlearn/web test:e2e`
+  before merging.
 
 ## Known testing gaps
 

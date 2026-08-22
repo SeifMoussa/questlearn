@@ -17,7 +17,28 @@
  * recorded, without ever re-writing a row. A cached value would only
  * be as fresh as its last recompute, which either means a background
  * job (explicitly out of scope for this module) or a mastery score
- * that quietly goes stale between attempts.
+ * that quietly goes stale between attempts. Recency weighting means
+ * newer evidence has proportionally greater influence when combined
+ * with older evidence — it is not decay: a static evidence set's
+ * score is provably invariant over time, since every point's weight
+ * shrinks at the same half-life and only their ratio matters.
+ *
+ * State is gated by evidence quantity as well as score (see
+ * `STATE_REQUIREMENTS` / `stateForEvidence` below): reaching
+ * Proficient or Mastered requires evidence spanning a minimum number
+ * of distinct attempts, not just a minimum number of evidence rows,
+ * so a single multi-question assignment can no longer alone produce
+ * "Mastered". "Distinct attempts" means distinct submitted
+ * assignments (the schema's `@@unique([assignmentId, learnerId])`
+ * makes attempt and assignment synonymous here) — it guarantees a
+ * different graded submission, not temporal separation; nothing
+ * prevents two assignments from being completed minutes apart.
+ * The evidence/attempt gate only caps a state downward from what the
+ * score alone would justify — it never promotes a state upward.
+ *
+ * QuestLearn uses a deterministic evidence-gated mastery heuristic
+ * designed for transparent learning analytics; it is not a validated
+ * Bayesian Knowledge Tracing or IRT model.
  */
 
 /** 15% score penalty applied when the learner viewed the hint. */
@@ -96,9 +117,9 @@ export function weightedMasteryScore(evidence: WeightedEvidencePoint[]): number 
 /**
  * Maps a 0-1 mastery score to its state per the locked cutoffs:
  * Beginning 0-0.39, Developing 0.40-0.69, Proficient 0.70-0.89,
- * Mastered 0.90-1.00. No minimum-evidence-count gating — a single
- * evidence row fully determines state, so this function never needs
- * an evidence count, only the already-aggregated score.
+ * Mastered 0.90-1.00. Score-only — does not apply the evidence/attempt
+ * gate; use `stateForEvidence` for the gated state actually reported
+ * to callers.
  */
 export function stateForScore(score: number): Exclude<MasteryState, "not_started"> {
   let resolved: Exclude<MasteryState, "not_started"> = STATE_CUTOFFS[0].state;
@@ -108,4 +129,52 @@ export function stateForScore(score: number): Exclude<MasteryState, "not_started
     }
   }
   return resolved;
+}
+
+export interface MasteryStateRequirement {
+  state: Exclude<MasteryState, "not_started">;
+  minScore: number;
+  minEvidenceCount: number;
+  minDistinctAttempts: number;
+}
+
+// Same states/score cutoffs as STATE_CUTOFFS, extended with the
+// evidence-count and distinct-attempt-count minimums each state
+// requires. Ascending order — walked top-down by `stateForEvidence`.
+const STATE_REQUIREMENTS: MasteryStateRequirement[] = [
+  { state: "beginning", minScore: 0, minEvidenceCount: 1, minDistinctAttempts: 1 },
+  { state: "developing", minScore: 0.4, minEvidenceCount: 2, minDistinctAttempts: 1 },
+  { state: "proficient", minScore: 0.7, minEvidenceCount: 3, minDistinctAttempts: 2 },
+  { state: "mastered", minScore: 0.9, minEvidenceCount: 4, minDistinctAttempts: 3 },
+];
+
+/** Number of distinct attempts represented in an evidence set. */
+export function distinctAttemptCount(evidence: { attemptId: string }[]): number {
+  return new Set(evidence.map((e) => e.attemptId)).size;
+}
+
+/**
+ * Gated state for a concept: the score alone determines the highest
+ * state that could apply (per `STATE_CUTOFFS`), then that candidate
+ * is walked back down — never up — until both `evidenceCount` and
+ * `distinctAttemptCount` clear the state's minimums. A learner who
+ * scores 0.98 from 2 evidence rows in 1 attempt is reported as
+ * Developing, not Mastered — capped by evidence, not by performance.
+ */
+export function stateForEvidence(
+  score: number,
+  evidenceCount: number,
+  distinctAttempts: number,
+): Exclude<MasteryState, "not_started"> {
+  const candidateState = stateForScore(score);
+  const candidateIndex = STATE_REQUIREMENTS.findIndex((r) => r.state === candidateState);
+
+  for (let i = candidateIndex; i >= 0; i--) {
+    const requirement = STATE_REQUIREMENTS[i];
+    if (evidenceCount >= requirement.minEvidenceCount && distinctAttempts >= requirement.minDistinctAttempts) {
+      return requirement.state;
+    }
+  }
+
+  return STATE_REQUIREMENTS[0].state;
 }

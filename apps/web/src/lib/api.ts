@@ -525,10 +525,63 @@ export interface ConceptMastery {
   conceptName: string;
   score: number | null;
   state: MasteryState;
+  evidenceCount: number;
+  distinctAttemptCount: number;
 }
 
 export function getMyMastery(accessToken: string) {
   return authedRequest<ConceptMastery[]>(accessToken, "GET", "/mastery/me");
+}
+
+// Mirrors the backend's STATE_CUTOFFS / evidence-gate minimums
+// (apps/api/src/mastery/mastery-formula.ts) purely for display: to
+// tell a learner "your score already qualifies for a higher state,
+// you just need more evidence" without a second API round trip. The
+// actual gating decision always comes from the API's `state` field —
+// this is presentation-only and never overrides it.
+const MASTERY_STATE_REQUIREMENTS: {
+  state: Exclude<MasteryState, "not_started">;
+  minScore: number;
+  minEvidenceCount: number;
+  minDistinctAttempts: number;
+}[] = [
+  { state: "beginning", minScore: 0, minEvidenceCount: 1, minDistinctAttempts: 1 },
+  { state: "developing", minScore: 0.4, minEvidenceCount: 2, minDistinctAttempts: 1 },
+  { state: "proficient", minScore: 0.7, minEvidenceCount: 3, minDistinctAttempts: 2 },
+  { state: "mastered", minScore: 0.9, minEvidenceCount: 4, minDistinctAttempts: 3 },
+];
+
+function scoreImpliedState(score: number): Exclude<MasteryState, "not_started"> {
+  let resolved: Exclude<MasteryState, "not_started"> = MASTERY_STATE_REQUIREMENTS[0].state;
+  for (const r of MASTERY_STATE_REQUIREMENTS) {
+    if (score >= r.minScore) resolved = r.state;
+  }
+  return resolved;
+}
+
+export interface MasteryGateStatus {
+  impliedState: Exclude<MasteryState, "not_started">;
+  minEvidenceCount: number;
+  minDistinctAttempts: number;
+}
+
+/**
+ * Returns non-null when `concept.state` is capped below what its raw
+ * score alone would justify — i.e. the score qualifies for a higher
+ * state but evidence/attempt counts don't clear that state's minimum
+ * yet. Null when the reported state already matches (or the concept
+ * has no evidence).
+ */
+export function masteryGateStatus(concept: ConceptMastery): MasteryGateStatus | null {
+  if (concept.score === null || concept.state === "not_started") return null;
+  const impliedState = scoreImpliedState(concept.score);
+  if (impliedState === concept.state) return null;
+  const requirement = MASTERY_STATE_REQUIREMENTS.find((r) => r.state === impliedState)!;
+  return {
+    impliedState,
+    minEvidenceCount: requirement.minEvidenceCount,
+    minDistinctAttempts: requirement.minDistinctAttempts,
+  };
 }
 
 export interface ClassMasteryLearner {
