@@ -72,6 +72,7 @@ async function main(): Promise<void> {
     const learner = await seedDemoLearner(prisma, user.tenantId);
     if (learner) {
       await seedDemoAssignmentAndAttempt(prisma, user.tenantId, user.id, learner);
+      await seedDemoAdditionalMasteryAttempts(prisma, user.tenantId, user.id, learner);
     }
     await seedDemoQuest(prisma, user.tenantId, user.id);
   } finally {
@@ -352,9 +353,47 @@ async function seedDemoActivities(prisma: PrismaClient, tenantId: string, teache
     ),
   );
 
+  // A second, narrower published activity covering only the two Solar
+  // System Basics questions (planet + Earth/Sun) — used by
+  // `seedDemoAdditionalMasteryAttempts` for two more submitted
+  // assignments so that concept genuinely reaches Mastered under the
+  // evidence-gated model (3+ distinct attempts), without also
+  // touching Number Theory's single evidence row, which the demo
+  // quest (`seedDemoQuest`) deliberately relies on staying short of
+  // Proficient.
+  let solarSystemCheck: { id: string; title: string } | null = null;
+  if (questions.length >= 3) {
+    solarSystemCheck = await prisma.activity.create({
+      data: {
+        tenantId,
+        teacherId,
+        title: "Published: Solar System Mastery Check",
+        status: "published",
+        publishedAt: new Date(),
+      },
+    });
+    const solarQuestions = [questions[0], questions[2]];
+    await prisma.$transaction(
+      solarQuestions.map((q, index) =>
+        prisma.activityQuestion.create({
+          data: {
+            tenantId,
+            activityId: solarSystemCheck!.id,
+            questionId: q.id,
+            order: index,
+            pinnedVersionId: q.currentVersionId,
+          },
+        }),
+      ),
+    );
+  }
+
   console.log("Seeded demo activities:");
   console.log(`  ${draft.title} (draft, ${Math.min(3, questions.length)} questions)`);
   console.log(`  ${published.title} (published, ${publishedQuestions.length} questions)`);
+  if (solarSystemCheck) {
+    console.log(`  ${solarSystemCheck.title} (published, 2 questions)`);
+  }
 }
 
 /**
@@ -589,6 +628,129 @@ async function seedDemoAssignmentAndAttempt(
     `Seeded demo assignment (${publishedActivity.title} -> ${homeroom.name}) and one submitted attempt (score ${Math.round(score * 100)}%).`,
   );
   console.log("Recorded mastery evidence and gamification XP/badges via the real grading-time recording path.");
+}
+
+/**
+ * Two more submitted attempts on the narrower "Solar System Mastery
+ * Check" activity (`seedDemoActivities`), each fully correct with no
+ * hint, via the same real grading-time recording path as
+ * `seedDemoAssignmentAndAttempt`. Combined with that first attempt's
+ * two Solar System Basics evidence rows, this gives the concept 6
+ * evidence rows across 3 distinct attempts — clearing the
+ * evidence-gated model's Mastered minimums (4 evidence rows, 3
+ * distinct attempts) with a genuinely high recency-weighted score, so
+ * the demo has one real Mastered concept reached entirely through the
+ * grading path, never a hand-inserted `MasteryEvidence` row.
+ * Idempotent on the count of assignments already made against this
+ * activity.
+ */
+async function seedDemoAdditionalMasteryAttempts(
+  prisma: PrismaClient,
+  tenantId: string,
+  teacherId: string,
+  learner: { id: string; name: string; email: string },
+): Promise<void> {
+  const homeroom = await prisma.class.findFirst({
+    where: { tenantId, teacherId, name: "Period 3 — Earth Science" },
+  });
+  const solarActivity = await prisma.activity.findFirst({
+    where: { tenantId, teacherId, title: "Published: Solar System Mastery Check" },
+    include: { questions: { orderBy: { order: "asc" }, include: { pinnedVersion: true } } },
+  });
+
+  if (!homeroom || !solarActivity) {
+    console.log("Missing prerequisite demo class/activity; skipping additional mastery attempts.");
+    return;
+  }
+
+  const attemptsNeeded = 2;
+  const existingAssignments = await prisma.assignment.count({
+    where: { tenantId, teacherId, activityId: solarActivity.id },
+  });
+  if (existingAssignments >= attemptsNeeded) {
+    console.log("Additional demo mastery attempts already exist; skipping.");
+    return;
+  }
+
+  const masteryService = new MasteryService(prisma as never);
+  const gamificationService = new GamificationService(prisma as never, masteryService);
+
+  for (let i = existingAssignments; i < attemptsNeeded; i++) {
+    const assignment = await prisma.assignment.create({
+      data: {
+        tenantId,
+        teacherId,
+        classId: homeroom.id,
+        activityId: solarActivity.id,
+        dueAt: new Date(Date.now() + (7 + i) * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const attempt = await prisma.attempt.create({
+      data: { tenantId, assignmentId: assignment.id, learnerId: learner.id, status: "submitted", submittedAt: new Date() },
+    });
+
+    const graded: { pointsAwarded: number; points: number }[] = [];
+    const gradedForEvidence: {
+      attemptResponseId: string;
+      questionId: string;
+      pointsAwarded: number;
+      points: number;
+      hintViewed: boolean;
+    }[] = [];
+
+    for (const aq of solarActivity.questions) {
+      const version = aq.pinnedVersion;
+      if (!version) continue;
+
+      const response = correctResponseFor(version);
+      const result = scoreQuestion(
+        { type: version.type, points: version.points, options: version.options, correctAnswer: version.correctAnswer },
+        response,
+      );
+
+      const created = await prisma.attemptResponse.create({
+        data: {
+          tenantId,
+          attemptId: attempt.id,
+          activityQuestionId: aq.id,
+          responseValue: response as never,
+          isCorrect: result.isCorrect,
+          pointsAwarded: result.pointsAwarded,
+          hintViewed: false,
+        },
+      });
+
+      graded.push({ pointsAwarded: result.pointsAwarded, points: version.points });
+      gradedForEvidence.push({
+        attemptResponseId: created.id,
+        questionId: aq.questionId,
+        pointsAwarded: result.pointsAwarded,
+        points: version.points,
+        hintViewed: false,
+      });
+    }
+
+    const score = overallScore(graded);
+    await prisma.attempt.update({ where: { id: attempt.id }, data: { score } });
+
+    const touchedConceptIds = await masteryService.recordEvidenceForAttempt(
+      prisma as unknown as Prisma.TransactionClient,
+      { tenantId, learnerId: learner.id },
+      gradedForEvidence,
+    );
+
+    const totalAwardedPoints = graded.reduce((sum, g) => sum + g.pointsAwarded, 0);
+    await gamificationService.awardForAttempt(
+      prisma as unknown as Prisma.TransactionClient,
+      { tenantId, learnerId: learner.id },
+      { attemptId: attempt.id, totalAwardedPoints, score, touchedConceptIds },
+    );
+  }
+
+  console.log(
+    `Seeded ${attemptsNeeded} additional submitted attempts on "${solarActivity.title}" so Solar System Basics genuinely reaches Mastered under the evidence-gated model.`,
+  );
 }
 
 /**

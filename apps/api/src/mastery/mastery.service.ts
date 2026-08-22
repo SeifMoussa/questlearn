@@ -3,8 +3,9 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   MasteryState,
+  distinctAttemptCount,
   effectiveResponseScore,
-  stateForScore,
+  stateForEvidence,
   weightedMasteryScore,
 } from "./mastery-formula";
 
@@ -31,6 +32,8 @@ export interface ConceptMasteryResult {
   conceptName: string;
   score: number | null;
   state: MasteryState;
+  evidenceCount: number;
+  distinctAttemptCount: number;
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -114,14 +117,14 @@ export class MasteryService {
    * successive calls as it ages.
    */
   private aggregateEvidence(
-    evidenceByConcept: Map<string, { responseScore: number; recordedAt: Date }[]>,
+    evidenceByConcept: Map<string, { responseScore: number; recordedAt: Date; attemptId: string }[]>,
     conceptId: string,
     conceptName: string,
     now: Date,
   ): ConceptMasteryResult {
     const evidence = evidenceByConcept.get(conceptId) ?? [];
     if (evidence.length === 0) {
-      return { conceptId, conceptName, score: null, state: "not_started" };
+      return { conceptId, conceptName, score: null, state: "not_started", evidenceCount: 0, distinctAttemptCount: 0 };
     }
 
     const score = weightedMasteryScore(
@@ -131,7 +134,17 @@ export class MasteryService {
       })),
     );
 
-    return { conceptId, conceptName, score, state: score === null ? "not_started" : stateForScore(score) };
+    const evidenceCount = evidence.length;
+    const attempts = distinctAttemptCount(evidence);
+
+    return {
+      conceptId,
+      conceptName,
+      score,
+      state: score === null ? "not_started" : stateForEvidence(score, evidenceCount, attempts),
+      evidenceCount,
+      distinctAttemptCount: attempts,
+    };
   }
 
   /**
@@ -175,15 +188,15 @@ export class MasteryService {
         learnerId: ctx.userId,
         ...(conceptIds && conceptIds.length > 0 ? { conceptId: { in: conceptIds } } : {}),
       },
-      include: { concept: true },
+      include: { concept: true, attemptResponse: { select: { attemptId: true } } },
     });
 
     const now = new Date();
-    const evidenceByConcept = new Map<string, { responseScore: number; recordedAt: Date }[]>();
+    const evidenceByConcept = new Map<string, { responseScore: number; recordedAt: Date; attemptId: string }[]>();
     const conceptNames = new Map<string, string>();
     for (const row of evidence) {
       const list = evidenceByConcept.get(row.conceptId) ?? [];
-      list.push({ responseScore: row.responseScore, recordedAt: row.recordedAt });
+      list.push({ responseScore: row.responseScore, recordedAt: row.recordedAt, attemptId: row.attemptResponse.attemptId });
       evidenceByConcept.set(row.conceptId, list);
       conceptNames.set(row.conceptId, row.concept.name);
     }
@@ -219,18 +232,18 @@ export class MasteryService {
 
     const evidence = await this.prisma.masteryEvidence.findMany({
       where: { tenantId: ctx.tenantId, learnerId: { in: learnerIds } },
-      include: { concept: true },
+      include: { concept: true, attemptResponse: { select: { attemptId: true } } },
     });
 
     const now = new Date();
-    const byLearnerConcept = new Map<string, Map<string, { responseScore: number; recordedAt: Date }[]>>();
+    const byLearnerConcept = new Map<string, Map<string, { responseScore: number; recordedAt: Date; attemptId: string }[]>>();
     const conceptNames = new Map<string, string>();
 
     for (const row of evidence) {
       conceptNames.set(row.conceptId, row.concept.name);
       const byConcept = byLearnerConcept.get(row.learnerId) ?? new Map();
       const list = byConcept.get(row.conceptId) ?? [];
-      list.push({ responseScore: row.responseScore, recordedAt: row.recordedAt });
+      list.push({ responseScore: row.responseScore, recordedAt: row.recordedAt, attemptId: row.attemptResponse.attemptId });
       byConcept.set(row.conceptId, list);
       byLearnerConcept.set(row.learnerId, byConcept);
     }

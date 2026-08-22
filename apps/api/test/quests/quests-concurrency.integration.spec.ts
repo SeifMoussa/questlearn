@@ -15,16 +15,21 @@ import * as argon2 from "argon2";
  * can be satisfied by TWO DIFFERENT attempts' own evidence,
  * independently, in two genuinely separate transactions.
  *
- * The quest here has a SINGLE step, gated only on reaching "mastered"
- * on a concept tagged onto TWO different questions (in two different
- * activities). A single full-credit response is already enough
- * evidence to reach "mastered" on its own (score 1.0 >= 0.9), so each
- * of two concurrently-submitted attempts, working from only its OWN
- * newly-recorded evidence inside its OWN transaction, independently
- * concludes "the quest is now complete" — regardless of whether the
- * other transaction has committed yet. Both race to insert
- * `QuestCompletion`; the unique constraint + `skipDuplicates` must
- * let exactly one survive.
+ * The quest here has a SINGLE step, gated on reaching "mastered" on a
+ * concept. Under the evidence-gated model (Module 10.2), "mastered"
+ * requires evidence from >= 3 distinct attempts and >= 4 evidence
+ * rows — a single full-credit response is no longer enough on its
+ * own. So the race is staged as: two attempts (A: 2 tagged questions,
+ * B: 1 tagged question) are submitted SEQUENTIALLY first, bringing
+ * the concept to 3 evidence rows across 2 distinct attempts (short of
+ * "mastered" — capped at "proficient"). Then two MORE attempts (C and
+ * D, one tagged question each) are submitted CONCURRENTLY: each,
+ * working from only its own newly-recorded evidence inside its own
+ * transaction (existing 3 rows/2 attempts + its own 1 row), computes
+ * 4 evidence rows across 3 distinct attempts — independently crossing
+ * the "mastered" gate regardless of whether the other transaction has
+ * committed yet. Both race to insert `QuestCompletion`; the unique
+ * constraint + `skipDuplicates` must let exactly one survive.
  */
 describe("quest completion reward (concurrency proof)", () => {
   let app: INestApplication;
@@ -42,6 +47,10 @@ describe("quest completion reward (concurrency proof)", () => {
   const questionIds: string[] = [];
   const activityIds: string[] = [];
   const assignmentIds: string[] = [];
+  let raceAssignmentA: string;
+  let raceAssignmentB: string;
+  let raceAssignmentC: string;
+  let raceAssignmentD: string;
 
   function teacherAuth() {
     return { Authorization: `Bearer ${teacherToken}` };
@@ -83,28 +92,33 @@ describe("quest completion reward (concurrency proof)", () => {
       .send({ requiredConceptId: conceptId, requiredMasteryState: "mastered" })
       .expect(201);
 
-    // Two independent activities, each with one question tagged with
-    // the same concept — either one alone gives a fresh learner
-    // enough evidence (a single full-credit response) to reach
-    // "mastered".
-    for (const label of ["A", "B"]) {
-      const q = await request(app.getHttpServer())
-        .post("/questions")
-        .set(teacherAuth())
-        .send({
-          type: "single_choice",
-          prompt: `Race question ${label}`,
-          points: 2,
-          options: [{ id: "x", text: "wrong" }, { id: "y", text: "right" }],
-          correctAnswer: "y",
-        })
-        .expect(201);
-      questionIds.push(q.body.id);
-      await request(app.getHttpServer()).patch(`/questions/${q.body.id}/concepts`).set(teacherAuth()).send({ conceptIds: [conceptId] }).expect(200);
-
+    // Four independent activities, all with question(s) tagged with
+    // the same concept: A has 2 tagged questions, B/C/D have 1 each.
+    // A+B (submitted sequentially, before the race) bring the concept
+    // to 3 evidence rows across 2 distinct attempts. C and D (raced
+    // concurrently) each independently push it to 4 evidence rows
+    // across 3 distinct attempts, crossing the "mastered" gate.
+    async function createRaceActivity(label: string, taggedQuestionCount: number): Promise<string> {
       const activity = await request(app.getHttpServer()).post("/activities").set(teacherAuth()).send({ title: `Race Activity ${label}` }).expect(201);
       activityIds.push(activity.body.id);
-      await request(app.getHttpServer()).post(`/activities/${activity.body.id}/questions`).set(teacherAuth()).send({ questionId: q.body.id }).expect(201);
+
+      for (let i = 0; i < taggedQuestionCount; i++) {
+        const q = await request(app.getHttpServer())
+          .post("/questions")
+          .set(teacherAuth())
+          .send({
+            type: "single_choice",
+            prompt: `Race question ${label}-${i}`,
+            points: 2,
+            options: [{ id: "x", text: "wrong" }, { id: "y", text: "right" }],
+            correctAnswer: "y",
+          })
+          .expect(201);
+        questionIds.push(q.body.id);
+        await request(app.getHttpServer()).patch(`/questions/${q.body.id}/concepts`).set(teacherAuth()).send({ conceptIds: [conceptId] }).expect(200);
+        await request(app.getHttpServer()).post(`/activities/${activity.body.id}/questions`).set(teacherAuth()).send({ questionId: q.body.id }).expect(201);
+      }
+
       await request(app.getHttpServer()).post(`/activities/${activity.body.id}/publish`).set(teacherAuth()).expect(200);
 
       const assignment = await request(app.getHttpServer())
@@ -113,7 +127,13 @@ describe("quest completion reward (concurrency proof)", () => {
         .send({ classId, activityId: activity.body.id, dueAt: new Date(Date.now() + 86400000).toISOString() })
         .expect(201);
       assignmentIds.push(assignment.body.id);
+      return assignment.body.id;
     }
+
+    raceAssignmentA = await createRaceActivity("A", 2);
+    raceAssignmentB = await createRaceActivity("B", 1);
+    raceAssignmentC = await createRaceActivity("C", 1);
+    raceAssignmentD = await createRaceActivity("D", 1);
   });
 
   afterAll(async () => {
@@ -152,6 +172,18 @@ describe("quest completion reward (concurrency proof)", () => {
     await app.close();
   });
 
+  async function startAnswerAndSubmit(learnerAuth: { Authorization: string }, assignmentId: string) {
+    const started = await request(app.getHttpServer()).post(`/assignments/${assignmentId}/attempts/start`).set(learnerAuth).expect(200);
+    for (const question of started.body.questions) {
+      await request(app.getHttpServer())
+        .patch(`/attempts/${started.body.id}/responses/${question.activityQuestionId}`)
+        .set(learnerAuth)
+        .send({ responseValue: "y" })
+        .expect(200);
+    }
+    return started.body.id as string;
+  }
+
   it("two concurrent, independently-sufficient attempts race to complete the same quest: exactly one QuestCompletion survives", async () => {
     const learnerEmail = `quests-race-learner-${Date.now()}@example.com`;
     const joined = await request(app.getHttpServer())
@@ -161,28 +193,32 @@ describe("quest completion reward (concurrency proof)", () => {
     const learnerAuth = { Authorization: `Bearer ${joined.body.accessToken}` };
     const learnerId = (await prisma.user.findUniqueOrThrow({ where: { email: learnerEmail } })).id;
 
-    const startedA = await request(app.getHttpServer()).post(`/assignments/${assignmentIds[0]}/attempts/start`).set(learnerAuth).expect(200);
-    const startedB = await request(app.getHttpServer()).post(`/assignments/${assignmentIds[1]}/attempts/start`).set(learnerAuth).expect(200);
+    // A (2 evidence rows) and B (1 evidence row), submitted
+    // sequentially: 3 evidence rows across 2 distinct attempts —
+    // short of "mastered" (needs >= 4 rows / >= 3 attempts), capped
+    // at "proficient".
+    const attemptAId = await startAnswerAndSubmit(learnerAuth, raceAssignmentA);
+    await request(app.getHttpServer()).post(`/attempts/${attemptAId}/submit`).set(learnerAuth).expect(200);
+    const attemptBId = await startAnswerAndSubmit(learnerAuth, raceAssignmentB);
+    await request(app.getHttpServer()).post(`/attempts/${attemptBId}/submit`).set(learnerAuth).expect(200);
 
-    await request(app.getHttpServer())
-      .patch(`/attempts/${startedA.body.id}/responses/${startedA.body.questions[0].activityQuestionId}`)
-      .set(learnerAuth)
-      .send({ responseValue: "y" })
-      .expect(200);
-    await request(app.getHttpServer())
-      .patch(`/attempts/${startedB.body.id}/responses/${startedB.body.questions[0].activityQuestionId}`)
-      .set(learnerAuth)
-      .send({ responseValue: "y" })
-      .expect(200);
+    const preRaceProgress = await request(app.getHttpServer()).get(`/quests/${questId}`).set(learnerAuth).expect(200);
+    expect(preRaceProgress.body.steps[0].complete).toBe(false);
+
+    const attemptCId = await startAnswerAndSubmit(learnerAuth, raceAssignmentC);
+    const attemptDId = await startAnswerAndSubmit(learnerAuth, raceAssignmentD);
 
     // Both attempts are pre-answered and ready; submit them at the
     // same time via Promise.all so their grading transactions
     // genuinely overlap, mirroring the concurrency proof already
     // established in gamification.integration.spec.ts and
-    // mastery.integration.spec.ts.
+    // mastery.integration.spec.ts. Each, from only its own
+    // newly-recorded evidence, independently computes 4 evidence rows
+    // across 3 distinct attempts (the pre-race 3 + its own 1) and
+    // concludes the quest is now complete.
     const [r1, r2] = await Promise.all([
-      request(app.getHttpServer()).post(`/attempts/${startedA.body.id}/submit`).set(learnerAuth),
-      request(app.getHttpServer()).post(`/attempts/${startedB.body.id}/submit`).set(learnerAuth),
+      request(app.getHttpServer()).post(`/attempts/${attemptCId}/submit`).set(learnerAuth),
+      request(app.getHttpServer()).post(`/attempts/${attemptDId}/submit`).set(learnerAuth),
     ]);
     expect(r1.status).toBe(200);
     expect(r2.status).toBe(200);
@@ -191,41 +227,39 @@ describe("quest completion reward (concurrency proof)", () => {
     expect(completions).toHaveLength(1);
     expect(completions[0].xpAwarded).toBe(60); // 50 base + 10*1 step
 
-    // A third, sequential attempt against a fresh assignment of the
+    // A fourth, sequential attempt against a fresh assignment of the
     // same already-mastered concept confirms this holds outside a
     // Promise.all race too, not just under it (mirrors the mastery
     // idempotency test's sequential follow-up check).
-    const q3 = await request(app.getHttpServer())
-      .post("/questions")
-      .set(teacherAuth())
-      .send({
-        type: "single_choice",
-        prompt: "Race question C (post-completion)",
-        points: 2,
-        options: [{ id: "x", text: "wrong" }, { id: "y", text: "right" }],
-        correctAnswer: "y",
-      })
-      .expect(201);
-    questionIds.push(q3.body.id);
-    await request(app.getHttpServer()).patch(`/questions/${q3.body.id}/concepts`).set(teacherAuth()).send({ conceptIds: [conceptId] }).expect(200);
-    const activityC = await request(app.getHttpServer()).post("/activities").set(teacherAuth()).send({ title: "Race Activity C" }).expect(201);
-    activityIds.push(activityC.body.id);
-    await request(app.getHttpServer()).post(`/activities/${activityC.body.id}/questions`).set(teacherAuth()).send({ questionId: q3.body.id }).expect(201);
-    await request(app.getHttpServer()).post(`/activities/${activityC.body.id}/publish`).set(teacherAuth()).expect(200);
-    const assignmentC = await request(app.getHttpServer())
-      .post("/assignments")
-      .set(teacherAuth())
-      .send({ classId, activityId: activityC.body.id, dueAt: new Date(Date.now() + 86400000).toISOString() })
-      .expect(201);
-    assignmentIds.push(assignmentC.body.id);
+    const raceAssignmentE = await (async () => {
+      const q = await request(app.getHttpServer())
+        .post("/questions")
+        .set(teacherAuth())
+        .send({
+          type: "single_choice",
+          prompt: "Race question E (post-completion)",
+          points: 2,
+          options: [{ id: "x", text: "wrong" }, { id: "y", text: "right" }],
+          correctAnswer: "y",
+        })
+        .expect(201);
+      questionIds.push(q.body.id);
+      await request(app.getHttpServer()).patch(`/questions/${q.body.id}/concepts`).set(teacherAuth()).send({ conceptIds: [conceptId] }).expect(200);
+      const activityE = await request(app.getHttpServer()).post("/activities").set(teacherAuth()).send({ title: "Race Activity E" }).expect(201);
+      activityIds.push(activityE.body.id);
+      await request(app.getHttpServer()).post(`/activities/${activityE.body.id}/questions`).set(teacherAuth()).send({ questionId: q.body.id }).expect(201);
+      await request(app.getHttpServer()).post(`/activities/${activityE.body.id}/publish`).set(teacherAuth()).expect(200);
+      const assignmentE = await request(app.getHttpServer())
+        .post("/assignments")
+        .set(teacherAuth())
+        .send({ classId, activityId: activityE.body.id, dueAt: new Date(Date.now() + 86400000).toISOString() })
+        .expect(201);
+      assignmentIds.push(assignmentE.body.id);
+      return assignmentE.body.id as string;
+    })();
 
-    const startedC = await request(app.getHttpServer()).post(`/assignments/${assignmentC.body.id}/attempts/start`).set(learnerAuth).expect(200);
-    await request(app.getHttpServer())
-      .patch(`/attempts/${startedC.body.id}/responses/${startedC.body.questions[0].activityQuestionId}`)
-      .set(learnerAuth)
-      .send({ responseValue: "y" })
-      .expect(200);
-    await request(app.getHttpServer()).post(`/attempts/${startedC.body.id}/submit`).set(learnerAuth).expect(200);
+    const attemptEId = await startAnswerAndSubmit(learnerAuth, raceAssignmentE);
+    await request(app.getHttpServer()).post(`/attempts/${attemptEId}/submit`).set(learnerAuth).expect(200);
 
     const completionsAfter = await prisma.questCompletion.findMany({ where: { questId, learnerId } });
     expect(completionsAfter).toHaveLength(1);

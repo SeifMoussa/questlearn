@@ -67,7 +67,7 @@ documents, full observability stack (APM/alerting).
 - **A2** — Learners are 13+, no guardian/consent flow needed.
 - **A3** — Formative assessment only — scores are not official grades.
 - **A4** — One active tenant type: "teacher workspace." Every row still carries `tenant_id` so the architecture is multi-tenant-correct even though institution admin UI isn't built.
-- **A5** — Mastery formula simplified to `mastery = weighted_avg(response_score, recency_weight)` for v1 (recency + hint-penalty only); full independence/repetition weighting is a documented v2 refinement.
+- **A5** — Mastery formula simplified to `mastery = weighted_avg(response_score, recency_weight)` for v1 (recency + hint-penalty only); full independence/repetition weighting is a documented v2 refinement. State is additionally gated by a minimum evidence-row-count and minimum-distinct-attempt-count per state (Module 10.2), so Proficient/Mastered require corroborating evidence from multiple distinct submitted assignments, not just a high score from one sitting — this heuristic caps a state downward from what the score alone would justify, never promotes it upward, and is a transparent, deterministic product heuristic, not a validated Bayesian Knowledge Tracing or IRT model.
 - **A6** — No real payments; a `plan: free` field exists in the data model but no billing flow is built.
 - **A7** — Single language (English), UI strings externalized for future localization, not implemented now.
 
@@ -85,7 +85,7 @@ documents, full observability stack (APM/alerting).
 4. Activity CRUD: draft → preview → publish (immutable) → assign.
 5. Attempt lifecycle: start → autosave → submit (locked, idempotent — duplicate submit must not double-grade or double-reward).
 6. Scoring service: rule-based per question type; partial credit = `correct/total_correct − incorrect/total_incorrect`, floor 0, ceiling 1.
-7. Mastery service: recalculates on every graded attempt; states Beginning/Developing/Proficient/Mastered with configurable thresholds.
+7. Mastery service: recalculates live on every read (never cached) from evidence recorded at grading time; states Beginning/Developing/Proficient/Mastered with configurable score thresholds (0.00/0.40/0.70/0.90), each state additionally gated by a minimum evidence-row-count and minimum-distinct-attempt-count (Beginning 1/1, Developing 2/1, Proficient 3/2, Mastered 4/3) — the gate only caps a state downward from what the raw score alone would justify, it never promotes one upward. Recency weighting means newer evidence has proportionally greater influence when combined with older evidence, not that scores "decay" — a static evidence set's score is provably invariant over time.
 8. Gamification service: append-only XP ledger, level curve, badge rules — idempotent against the attempt's event ID.
 9. Quest service: linear step progression, gated by completion and/or mastery threshold, single reward issuance.
 10. Reporting: completion rate, average score, mastery breakdown, question-level analysis, CSV export.

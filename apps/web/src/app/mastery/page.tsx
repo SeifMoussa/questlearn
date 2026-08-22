@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Badge, ProgressBar } from "@questlearn/design-system";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError, ConceptMastery, MasteryState, getMyMastery } from "@/lib/api";
+import { ApiError, ConceptMastery, MasteryState, getMyMastery, masteryGateStatus } from "@/lib/api";
 
 const STATE_LABELS: Record<MasteryState, string> = {
   not_started: "Not started",
@@ -120,31 +120,40 @@ export default function MasteryPage() {
           data-testid="mastery-concept-list"
           style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, maxWidth: 800 }}
         >
-          {mastery.map((concept) => (
-            <div
-              key={concept.conceptId}
-              data-testid="mastery-concept-card"
-              style={{
-                background: "var(--surface-card)",
-                borderRadius: "var(--radius-lg)",
-                boxShadow: "var(--shadow-card)",
-                padding: 20,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <h2 style={{ fontSize: 15, fontWeight: "var(--fw-semibold)", margin: 0, color: "var(--text-primary)" }}>
-                  {concept.conceptName}
-                </h2>
-                <span data-testid="mastery-state-badge">
-                  <Badge tone={STATE_TONES[concept.state]}>{STATE_LABELS[concept.state]}</Badge>
-                </span>
+          {mastery.map((concept) => {
+            const gate = masteryGateStatus(concept);
+            return (
+              <div
+                key={concept.conceptId}
+                data-testid="mastery-concept-card"
+                style={{
+                  background: "var(--surface-card)",
+                  borderRadius: "var(--radius-lg)",
+                  boxShadow: "var(--shadow-card)",
+                  padding: 20,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <h2 style={{ fontSize: 15, fontWeight: "var(--fw-semibold)", margin: 0, color: "var(--text-primary)" }}>
+                    {concept.conceptName}
+                  </h2>
+                  <span data-testid="mastery-state-badge">
+                    <Badge tone={STATE_TONES[concept.state]}>{STATE_LABELS[concept.state]}</Badge>
+                  </span>
+                </div>
+                <ProgressBar
+                  value={concept.score !== null ? Math.round(concept.score * 100) : 0}
+                  tone={progressToneFor(concept.state)}
+                />
+                {gate && (
+                  <p data-testid="mastery-gate-note" style={{ fontSize: 12, color: "var(--text-secondary)", margin: "8px 0 0" }}>
+                    Score {concept.score !== null ? concept.score.toFixed(2) : "—"} · {concept.distinctAttemptCount} of{" "}
+                    {gate.minDistinctAttempts} attempts needed for {STATE_LABELS[gate.impliedState]}
+                  </p>
+                )}
               </div>
-              <ProgressBar
-                value={concept.score !== null ? Math.round(concept.score * 100) : 0}
-                tone={progressToneFor(concept.state)}
-              />
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </main>

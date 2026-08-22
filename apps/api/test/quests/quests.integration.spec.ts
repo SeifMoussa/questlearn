@@ -94,31 +94,37 @@ describe("quests: CRUD, tenant isolation, and gating (integration)", () => {
     await app.close();
   });
 
-  async function createPublishedActivity(title: string, taggedConceptId?: string) {
-    const q = await request(app.getHttpServer())
-      .post("/questions")
-      .set(teacherAuth())
-      .send({
-        type: "single_choice",
-        prompt: `${title} prompt`,
-        points: 2,
-        options: [{ id: "x", text: "wrong" }, { id: "y", text: "right" }],
-        correctAnswer: "y",
-      })
-      .expect(201);
-    questionIds.push(q.body.id);
-
-    if (taggedConceptId) {
-      await request(app.getHttpServer())
-        .patch(`/questions/${q.body.id}/concepts`)
+  async function createPublishedActivity(title: string, taggedConceptId?: string, questionCount = 1) {
+    const questionIdsForActivity: string[] = [];
+    for (let i = 0; i < questionCount; i++) {
+      const q = await request(app.getHttpServer())
+        .post("/questions")
         .set(teacherAuth())
-        .send({ conceptIds: [taggedConceptId] })
-        .expect(200);
+        .send({
+          type: "single_choice",
+          prompt: `${title} prompt ${i}`,
+          points: 2,
+          options: [{ id: "x", text: "wrong" }, { id: "y", text: "right" }],
+          correctAnswer: "y",
+        })
+        .expect(201);
+      questionIds.push(q.body.id);
+      questionIdsForActivity.push(q.body.id);
+
+      if (taggedConceptId) {
+        await request(app.getHttpServer())
+          .patch(`/questions/${q.body.id}/concepts`)
+          .set(teacherAuth())
+          .send({ conceptIds: [taggedConceptId] })
+          .expect(200);
+      }
     }
 
     const activity = await request(app.getHttpServer()).post("/activities").set(teacherAuth()).send({ title }).expect(201);
     activityIds.push(activity.body.id);
-    await request(app.getHttpServer()).post(`/activities/${activity.body.id}/questions`).set(teacherAuth()).send({ questionId: q.body.id }).expect(201);
+    for (const questionId of questionIdsForActivity) {
+      await request(app.getHttpServer()).post(`/activities/${activity.body.id}/questions`).set(teacherAuth()).send({ questionId }).expect(201);
+    }
     await request(app.getHttpServer()).post(`/activities/${activity.body.id}/publish`).set(teacherAuth()).expect(200);
 
     const assignment = await request(app.getHttpServer())
@@ -133,8 +139,13 @@ describe("quests: CRUD, tenant isolation, and gating (integration)", () => {
 
   async function submitCorrectly(learnerAuth: { Authorization: string }, assignmentId: string) {
     const started = await request(app.getHttpServer()).post(`/assignments/${assignmentId}/attempts/start`).set(learnerAuth).expect(200);
-    const aqId = started.body.questions[0].activityQuestionId;
-    await request(app.getHttpServer()).patch(`/attempts/${started.body.id}/responses/${aqId}`).set(learnerAuth).send({ responseValue: "y" }).expect(200);
+    for (const question of started.body.questions) {
+      await request(app.getHttpServer())
+        .patch(`/attempts/${started.body.id}/responses/${question.activityQuestionId}`)
+        .set(learnerAuth)
+        .send({ responseValue: "y" })
+        .expect(200);
+    }
     return request(app.getHttpServer()).post(`/attempts/${started.body.id}/submit`).set(learnerAuth).expect(200);
   }
 
@@ -198,16 +209,27 @@ describe("quests: CRUD, tenant isolation, and gating (integration)", () => {
   // -----------------------------------------------------------------
 
   let step1AssignmentId: string;
-  let step2AssignmentId: string;
+  let step2AssignmentIds: string[];
   let step3AssignmentId: string;
   let learnerAuth: { Authorization: string };
   let learnerId: string;
 
-  it("builds a 3-step quest: activity-only, mastery-only (mastered), combined (activity AND mastery)", async () => {
+  it("builds a 3-step quest: activity-only, mastery-only (mastered via 3 distinct attempts), combined (activity AND mastery)", async () => {
     const step1 = await createPublishedActivity("Quest Step 1 Activity");
     step1AssignmentId = step1.assignmentId;
-    const step2Source = await createPublishedActivity("Quest Step 2 Mastery Source", conceptId);
-    step2AssignmentId = step2Source.assignmentId;
+
+    // Reaching "mastered" now requires >= 4 evidence rows spanning
+    // >= 3 distinct attempts (Module 10.2 evidence-gated model), not
+    // just a single high-scoring submission — so the mastery source
+    // is 3 separate published activities/assignments, all tagged with
+    // the same concept (source A has 2 tagged questions so 3 attempts
+    // yield 4 evidence rows total), each to be answered correctly in
+    // its own attempt.
+    const sourceA = await createPublishedActivity("Quest Step 2 Mastery Source A", conceptId, 2);
+    const sourceB = await createPublishedActivity("Quest Step 2 Mastery Source B", conceptId);
+    const sourceC = await createPublishedActivity("Quest Step 2 Mastery Source C", conceptId);
+    step2AssignmentIds = [sourceA.assignmentId, sourceB.assignmentId, sourceC.assignmentId];
+
     const step3 = await createPublishedActivity("Quest Step 3 Activity", conceptId);
     step3AssignmentId = step3.assignmentId;
 
@@ -251,8 +273,19 @@ describe("quests: CRUD, tenant isolation, and gating (integration)", () => {
     expect(progress.body.complete).toBe(false);
   });
 
-  it("reaching 'mastered' on the concept completes step 2, but step 3 still needs its own activity", async () => {
-    await submitCorrectly(learnerAuth, step2AssignmentId);
+  it("two of the three needed distinct attempts is NOT enough to reach 'mastered' (evidence/attempt gate)", async () => {
+    await submitCorrectly(learnerAuth, step2AssignmentIds[0]);
+    await submitCorrectly(learnerAuth, step2AssignmentIds[1]);
+
+    const progress = await request(app.getHttpServer()).get(`/quests/${questId}`).set(learnerAuth).expect(200);
+    // Score alone would already justify "mastered" from 2 perfect
+    // attempts, but the gate requires >= 3 distinct attempts.
+    expect(progress.body.steps[1].complete).toBe(false);
+    expect(progress.body.complete).toBe(false);
+  });
+
+  it("a third distinct attempt genuinely reaches 'mastered' and completes step 2, but step 3 still needs its own activity", async () => {
+    await submitCorrectly(learnerAuth, step2AssignmentIds[2]);
 
     const progress = await request(app.getHttpServer()).get(`/quests/${questId}`).set(learnerAuth).expect(200);
     expect(progress.body.steps[1].complete).toBe(true); // mastery gate satisfied

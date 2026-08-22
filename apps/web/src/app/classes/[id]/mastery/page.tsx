@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AvatarMetricRow, Badge, StatCard } from "@questlearn/design-system";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError, ClassMasteryLearner, MasteryState, getClassMastery } from "@/lib/api";
+import { ApiError, ClassMasteryLearner, MasteryState, getClassMastery, masteryGateStatus } from "@/lib/api";
 
 const STATE_LABELS: Record<MasteryState, string> = {
   not_started: "Not started",
@@ -187,11 +187,15 @@ export default function ClassMasteryPage() {
                     meta={learner.concepts.map((c) => `${c.conceptName}: ${STATE_LABELS[c.state]}`).join(" · ")}
                   />
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingLeft: 48, marginTop: -4, marginBottom: 8 }}>
-                    {learner.concepts.map((c) => (
-                      <Badge key={c.conceptId} tone={c.state === "not_started" ? "neutral" : AVATAR_TONE_FOR_STATE[c.state]}>
-                        {c.conceptName}: {c.score !== null ? `${Math.round(c.score * 100)}%` : "—"}
-                      </Badge>
-                    ))}
+                    {learner.concepts.map((c) => {
+                      const gate = masteryGateStatus(c);
+                      return (
+                        <Badge key={c.conceptId} tone={c.state === "not_started" ? "neutral" : AVATAR_TONE_FOR_STATE[c.state]}>
+                          {c.conceptName}: {c.score !== null ? `${Math.round(c.score * 100)}%` : "—"}
+                          {gate ? ` (${c.distinctAttemptCount}/${gate.minDistinctAttempts} attempts for ${STATE_LABELS[gate.impliedState]})` : ""}
+                        </Badge>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
