@@ -7,7 +7,7 @@ Hardening).
 
 ## Test suites
 
-- **Jest — unit + integration, `apps/api`**: 31 suites, 269 tests, run
+- **Jest — unit + integration, `apps/api`**: 31 suites, 281 tests, run
   against real Postgres/Redis (via `docker-compose`), not mocks, for
   every integration spec. Covers: auth session lifecycle, classes
   lifecycle + join-code race retry, questions lifecycle + versioning +
@@ -177,15 +177,19 @@ production-code changes, since they only ever consumed the returned
   "Score 0.98 · 2 of 3 attempts needed for Mastered") whenever the raw
   score would justify a higher state than what's reported, computed
   client-side in `lib/api.ts`'s `masteryGateStatus`.
-- **Verification note**: this environment had no reachable Postgres
-  (Docker Desktop's engine was not running and could not be started
-  headlessly here), so the integration/E2E suites above are updated
-  and were reviewed by hand for correctness against the new gate, but
-  were not executed in this session. The pure unit suite
-  (`mastery-formula.spec.ts`, 26 tests) was run and passes. Run the
-  full suite locally with `docker compose up -d && pnpm --filter
-  @questlearn/api test && pnpm --filter @questlearn/web test:e2e`
-  before merging.
+- **Verification note**: the full suite was executed against real
+  Postgres/Redis containers (`docker compose up -d`, migrated and
+  reseeded from zero) and a real production build (`nest build` +
+  `node dist/main.js`, `next build` + `next start`) —
+  `pnpm --filter @questlearn/api test`: **31 suites, 281 tests, all
+  pass**; `pnpm --filter @questlearn/web test`: **3/3 pass**;
+  `pnpm --filter @questlearn/web e2e` (Playwright, 48 tests): **48/48
+  pass**, including the auth email-verification flow that reads the
+  API's `dev.log`. (An earlier verification pass in this same effort
+  did run the suites but left this note un-updated from a draft
+  written before Docker was confirmed reachable — that was a
+  documentation lag, not a case where the suites genuinely didn't
+  run; this note reflects the actual, current, re-executed results.)
 
 ## Known testing gaps
 
